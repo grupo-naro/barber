@@ -40,3 +40,8 @@ el scope real sale de `## Target Files (Scope)` en cada `spec.md`.
 ## v1.6 — panel de administración del SaaS (pedido del dueño)
 
 - [x] 018-platform-admin: Panel `/admin` para el dueño de la plataforma, con **cuenta de administrador aparte** (tabla propia, login en `/admin/login`, alta por script en el servidor). Funciones: **alta de barbería** (nombre + slug) con dueño invitado por link; **listado con métricas** (barberos, turnos y cortes del mes, última actividad, link a la landing); **suspender / reactivar** (suspendida: el panel de la barbería no deja entrar y la landing muestra "no disponible"; no se borra nada); **editar barbería** (nombre, slug, email del dueño, nuevo link de acceso para el dueño); **plan y vencimiento manuales** con aviso en el panel de la barbería al vencer. Sin cobro automático. · área: `prisma/**`, `src/app/admin/**`, `src/lib/admin-*.ts`, `src/server/*/admin*.ts`, `src/proxy.ts`, `src/lib/auth.ts`, `src/app/[slug]/**`, `src/app/(dashboard)/layout.tsx`, `scripts/create-admin.ts`, `package.json` → 018-platform-admin
+
+## Seguimientos de seguridad (del job 018)
+
+- [ ] 019-session-revocation: Invalidar sesiones de barbería al cambiar la contraseña o al usar un link RESET (`passwordChangedAt` vs `iat`), y cortar el loop `/login` ↔ `/dashboard` de usuarios inactivos con JWT vigente (`/login?inactive=1`, mismo patrón que la suspensión). · área: `prisma/**`, `src/lib/auth.ts`, `src/lib/session.ts`, `src/proxy.ts`, `src/server/actions/{account,invitations}.ts`
+- [ ] 020-admin-hardening: `ADMIN_SESSION_SECRET` propio para las sesiones de admin, límite de intentos en `/admin/login` y log de auditoría de acciones del admin. · área: `src/lib/admin-*.ts`, `src/app/admin/**`, `.env.example`
