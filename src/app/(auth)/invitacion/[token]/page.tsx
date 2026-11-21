@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { INVALID_INVITATION_MESSAGE } from "@/lib/invitations";
@@ -32,6 +33,7 @@ function InvalidInvitation() {
 
 async function Invitation({ params }: { params: PageProps<"/invitacion/[token]">["params"] }) {
   const { token } = await params;
+  await connection(); // vigencia y uso de la invitación: siempre por request, nunca prerenderizado
   const invitation = await getUsableInvitation(token);
   if (!invitation) return <InvalidInvitation />;
 
