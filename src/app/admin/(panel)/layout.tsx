@@ -30,8 +30,8 @@ async function AdminIdentity() {
 export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="flex flex-1 flex-col bg-background">
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
-        <nav className="flex items-center gap-4 text-sm">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-2">
+        <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <Link href="/admin" className="flex items-center gap-2 font-semibold">
             <Shield className="size-4" aria-hidden />
             Barber · Admin

@@ -2,18 +2,20 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ExternalLink, Plus, Search } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin-auth";
-import { PLAN_LABELS, normalizeSearch } from "@/lib/platform-admin";
+import { normalizeSearch } from "@/lib/platform-admin";
 import { listBarbershopsWithMetrics } from "@/server/queries/admin";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { formatDate, formatDateTime } from "./format";
+import { formatDateTime } from "./format";
+import { PlanBadge } from "./plan-badge";
 import { BarbershopStatusBadge } from "./status-badge";
 
 async function BarbershopsTable({ searchParams }: { searchParams: PageProps<"/admin">["searchParams"] }) {
   await requireAdminSession();
   const q = normalizeSearch((await searchParams).q);
-  const rows = await listBarbershopsWithMetrics(q);
+  const now = new Date();
+  const rows = await listBarbershopsWithMetrics(q, now);
 
   return (
     <>
@@ -77,16 +79,13 @@ async function BarbershopsTable({ searchParams }: { searchParams: PageProps<"/ad
                   <td className="px-3 py-2">
                     <BarbershopStatusBadge status={row.status} />
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    {PLAN_LABELS[row.plan]}
-                    <span className="text-muted-foreground">
-                      {row.planExpiresAt ? ` · vence ${formatDate(row.planExpiresAt, row.timezone)}` : " · sin vencimiento"}
-                    </span>
+                  <td className="px-3 py-2">
+                    <PlanBadge plan={row.plan} planExpiresAt={row.planExpiresAt} timeZone={row.timezone} now={now} />
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{row.activeBarbers}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{row.appointmentsThisMonth}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{row.recordsThisMonth}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateTime(row.lastActivityAt)}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(row.lastActivityAt)}</td>
                 </tr>
               ))
             )}

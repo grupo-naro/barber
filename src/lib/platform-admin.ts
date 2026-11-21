@@ -82,9 +82,21 @@ export const setStatusSchema = z.object({
 export const barbershopRefSchema = z.object({ id: barbershopIdField });
 
 export const adminLoginSchema = z.object({
-  email: z.email().trim().toLowerCase(),
+  email: emailField,
   password: z.string().min(1).max(200),
 });
+
+/** Slug sugerido a partir del nombre (sin acentos, minúsculas, guiones simples, hasta 40). Puede no ser válido. */
+export function suggestSlug(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+}
 
 /** Búsqueda del listado (`?q=`): texto acotado; vacío = sin filtro. */
 export function normalizeSearch(q: unknown): string {

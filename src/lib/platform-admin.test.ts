@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminLoginSchema,
   createBarbershopSchema,
   defaultOpeningHours,
   generateAdminPassword,
@@ -7,6 +8,7 @@ import {
   lastActivity,
   monthRange,
   normalizeSearch,
+  suggestSlug,
   planBanner,
   planBannerMessage,
   planExpiresAtFromDate,
@@ -54,6 +56,19 @@ describe("platform-admin: schemas", () => {
     expect(updateBarbershopSchema.safeParse({ ...edit, planExpiresAt: "2026-02-30" }).success).toBe(false);
     expect(updateBarbershopSchema.safeParse({ ...edit, planExpiresAt: "mañana" }).success).toBe(false);
     expect(updateBarbershopSchema.safeParse({ ...edit, slug: "admin" }).success).toBe(false);
+  });
+
+  it("suggestSlug arma un slug desde el nombre", () => {
+    expect(suggestSlug("Barbería Ñandú & Co.")).toBe("barberia-nandu-co");
+    expect(suggestSlug("  --Hola   Mundo--  ")).toBe("hola-mundo");
+    expect(suggestSlug("")).toBe("");
+    const long = suggestSlug("a".repeat(39) + " bcd");
+    expect(long.length).toBeLessThanOrEqual(40);
+    expect(long.endsWith("-")).toBe(false);
+  });
+
+  it("login de admin: el email se recorta antes de validarse", () => {
+    expect(adminLoginSchema.parse({ email: "  Admin@X.com ", password: "x" }).email).toBe("admin@x.com");
   });
 
   it("normalizeSearch recorta y acota", () => {

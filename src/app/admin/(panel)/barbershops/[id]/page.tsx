@@ -3,12 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin-auth";
-import { PLAN_LABELS } from "@/lib/platform-admin";
 import { businessDate } from "@/lib/time";
 import { getBarbershopForAdmin } from "@/server/queries/admin";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "../../format";
+import { PlanBadge } from "../../plan-badge";
 import { BarbershopStatusBadge } from "../../status-badge";
 import { AccessLinkForm } from "./access-link-form";
 import { EditBarbershopForm } from "./edit-form";
@@ -24,6 +23,7 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
   const { id } = await params;
   const shop = await getBarbershopForAdmin(id);
   if (!shop) notFound();
+  const now = new Date();
 
   return (
     <>
@@ -31,7 +31,7 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold tracking-tight break-words">{shop.name}</h1>
           <BarbershopStatusBadge status={shop.status} />
-          <Badge variant="outline">{PLAN_LABELS[shop.plan]}</Badge>
+          <PlanBadge plan={shop.plan} planExpiresAt={shop.planExpiresAt} timeZone={shop.timezone} now={now} />
         </div>
         <p className="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
           <a
@@ -45,7 +45,6 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
             <span className="sr-only">(se abre en una pestaña nueva)</span>
           </a>
           <span>Alta: {formatDate(shop.createdAt, shop.timezone)}</span>
-          <span>Vencimiento: {shop.planExpiresAt ? formatDate(shop.planExpiresAt, shop.timezone) : "sin vencimiento"}</span>
         </p>
       </div>
 
@@ -78,8 +77,8 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
                 <h2 className="text-base font-semibold">Acceso del dueño</h2>
               </CardTitle>
               <CardDescription>
-                {shop.owner ? ownerSummary(shop.owner) : "Esta barbería no tiene dueño cargado."} El link nuevo invalida
-                los anteriores, sirve una sola vez y vence en 48 horas.
+                {shop.owner ? ownerSummary(shop.owner) : "Esta barbería no tiene dueño cargado."} Al usarlo, el dueño elige
+                una contraseña nueva. El link invalida los anteriores, sirve una sola vez y vence en 48 horas.
               </CardDescription>
             </CardHeader>
             <CardContent>{shop.owner ? <AccessLinkForm id={shop.id} /> : null}</CardContent>
