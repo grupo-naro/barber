@@ -6,7 +6,6 @@ import { getLandingSettings } from "@/server/queries/landing";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from "./profile-form";
 import { HoursForm } from "./hours-form";
-import { PayoutList } from "./payout-form";
 import { LandingForm } from "./landing-form";
 
 export const metadata: Metadata = { title: "Configuración — Barber" };
@@ -58,20 +57,6 @@ async function Settings() {
         </CardHeader>
         <CardContent>
           <HoursForm hours={settings.hours} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h2 className="text-lg font-semibold">Liquidaciones</h2>
-          </CardTitle>
-          <CardDescription>
-            Cómo se le liquida a cada barbero: un porcentaje de lo que factura, un alquiler fijo o nada.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PayoutList users={settings.users} />
         </CardContent>
       </Card>
     </>

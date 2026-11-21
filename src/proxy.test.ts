@@ -102,6 +102,18 @@ describe("proxy: decidePublicSlug (404 real para slugs inexistentes)", () => {
     });
   });
 
+  it("/invitacion/<token> es público: no pide sesión ni pasa por el chequeo de slug", async () => {
+    expect(isPrivatePath("/invitacion/abc")).toBe(false);
+    expect(decideRoute("/invitacion/abc", "", false)).toEqual({ action: "next" });
+    const l = lookup(false);
+    expect(publicSlugFromPath("/invitacion/abc")).toBeNull();
+    expect(await decidePublicSlug("/invitacion/abc", l.fn)).toEqual({ action: "skip" });
+    expect(l.calls).toEqual([]);
+    // `/invitacion` suelto es un slug reservado → 404 sin consultar la DB.
+    expect(await decidePublicSlug("/invitacion", l.fn)).toEqual({ action: "not-found" });
+    expect(l.calls).toEqual([]);
+  });
+
   it("no aplica a /, archivos estáticos ni rutas de más de un segmento", async () => {
     for (const p of ["/", "/favicon.ico", "/dashboard/cash", "/_next/static/a.js", "/api/x", "/a/b"]) {
       const l = lookup(false);

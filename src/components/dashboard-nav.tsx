@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Scissors, Settings, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, Scissors, Settings, Users, Wallet, type LucideIcon } from "lucide-react";
 import { isNavItemActive, type DashboardNavItem } from "@/lib/dashboard-nav";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const icons: Record<string, LucideIcon> = {
   "/dashboard/today": CalendarDays,
   "/dashboard/services": Scissors,
   "/dashboard/cash": Wallet,
+  "/dashboard/barbers": Users,
   "/dashboard/settings": Settings,
 };
 

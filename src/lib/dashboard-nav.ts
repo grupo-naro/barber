@@ -9,6 +9,7 @@ const NAV_ITEMS: readonly (DashboardNavItem & { ownerOnly: boolean })[] = [
   { href: "/dashboard/today", label: "Hoy", ownerOnly: false },
   { href: "/dashboard/services", label: "Servicios", ownerOnly: true },
   { href: "/dashboard/cash", label: "Caja", ownerOnly: true },
+  { href: "/dashboard/barbers", label: "Barberos", ownerOnly: true },
   { href: "/dashboard/settings", label: "Configuración", ownerOnly: true },
 ];
 

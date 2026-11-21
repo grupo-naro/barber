@@ -21,6 +21,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "static",
   "public",
   "assets",
+  "invitacion", // links de invitación de barberos: /invitacion/<token>
   "media", // archivos subidos por las barberías: /media/<barbershopId>/<archivo>
   "app",
   "www",
