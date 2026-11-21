@@ -7,12 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { navItemsForRole } from "@/lib/dashboard-nav";
+import { planBanner, planBannerMessage } from "@/lib/platform-admin";
 import { cn } from "@/lib/utils";
 
 const roleLabel = { OWNER: "Dueño/a", BARBER: "Barbero/a" } as const;
 
 async function SessionHeader() {
   const session = await requireSession();
+  // Aviso del plan solo para el dueño, con la fecha en la timezone de la barbería. No bloquea nada.
+  const banner =
+    session.role === "OWNER"
+      ? planBanner(session.barbershop.planExpiresAt, new Date(), session.barbershop.timezone)
+      : ({ kind: "none" } as const);
+  const bannerMessage = planBannerMessage(banner);
   return (
     <>
       <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
@@ -40,6 +47,17 @@ async function SessionHeader() {
           </form>
         </div>
       </header>
+      {bannerMessage ? (
+        <p
+          role="status"
+          className={cn(
+            "border-b px-4 py-2 text-center text-sm",
+            banner.kind === "expired" ? "bg-destructive/10 text-destructive" : "bg-muted text-foreground",
+          )}
+        >
+          {bannerMessage}
+        </p>
+      ) : null}
       {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
       <DashboardNav items={navItemsForRole(session.role)} />
     </>

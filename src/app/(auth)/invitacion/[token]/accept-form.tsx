@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function AcceptInvitationForm({ token }: { token: string }) {
+export function AcceptInvitationForm({ token, reset = false }: { token: string; reset?: boolean }) {
   const [state, action, pending] = useActionState<AcceptInvitationState, FormData>(acceptInvitation, undefined);
   const errors = state?.fieldErrors ?? {};
 
@@ -28,7 +28,7 @@ export function AcceptInvitationForm({ token }: { token: string }) {
     <form action={action} className="flex flex-col gap-4" noValidate>
       <input type="hidden" name="token" value={token} />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Contraseña</Label>
+        <Label htmlFor="password">{reset ? "Nueva contraseña" : "Contraseña"}</Label>
         <Input
           id="password"
           name="password"
@@ -69,7 +69,7 @@ export function AcceptInvitationForm({ token }: { token: string }) {
         </p>
       ) : null}
       <Button type="submit" size="lg" className="h-11" disabled={pending}>
-        {pending ? "Activando…" : "Activar mi cuenta"}
+        {pending ? (reset ? "Guardando…" : "Activando…") : reset ? "Guardar y entrar" : "Activar mi cuenta"}
       </Button>
     </form>
   );

@@ -40,13 +40,24 @@ async function Invitation({ params }: { params: PageProps<"/invitacion/[token]">
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-xl">Sumate a {invitation.barbershopName}</CardTitle>
-        <CardDescription>
-          Hola, {invitation.userName}. Elegí una contraseña para entrar al panel de la barbería.
-        </CardDescription>
+        {invitation.kind === "RESET" ? (
+          <>
+            <CardTitle className="text-xl">Elegí una nueva contraseña</CardTitle>
+            <CardDescription>
+              Hola, {invitation.userName}. Elegí una nueva contraseña para entrar al panel de {invitation.barbershopName}.
+            </CardDescription>
+          </>
+        ) : (
+          <>
+            <CardTitle className="text-xl">Sumate a {invitation.barbershopName}</CardTitle>
+            <CardDescription>
+              Hola, {invitation.userName}. Elegí una contraseña para entrar al panel de la barbería.
+            </CardDescription>
+          </>
+        )}
       </CardHeader>
       <CardContent>
-        <AcceptInvitationForm token={token} />
+        <AcceptInvitationForm token={token} reset={invitation.kind === "RESET"} />
       </CardContent>
     </Card>
   );

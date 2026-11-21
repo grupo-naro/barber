@@ -8,7 +8,8 @@ import { db } from "@/lib/db";
 import { addDays, weekdayOf, zonedTimeToUtc } from "@/lib/slots";
 import { businessDate, localTime } from "@/lib/time";
 import { createPublicBooking, type PublicBookingInput } from "@/server/booking";
-import { getAvailableSlots } from "@/server/queries/booking";
+import { getAvailableSlots, getOnlineServices, getPublicBarbershop } from "@/server/queries/booking";
+import { barbershopSlugExists } from "@/server/queries/slug-exists";
 import { completeAppointmentRecord, setTodayAppointmentStatus, type ShopContext } from "@/server/records";
 
 const SLUG = "smoke-004";
@@ -268,6 +269,35 @@ async function main() {
   check(!crossSlug.ok, "servicio de smoke-004 reservado vía smoke-004-other → ok:false");
   check((await countAppointments()) === beforeInvalid, "los rechazos no crearon turnos");
   check((await db.customer.count()) === customersBefore, "los rechazos no crearon clientes");
+
+  // (d.2) Barbería SUSPENDED (job 018): ni reservas (aunque el POST llegue directo), ni slots, ni datos públicos.
+  console.log("Verificando barbería suspendida…");
+  await db.barbershop.update({ where: { id: shop.id }, data: { status: "SUSPENDED" } });
+  const beforeSuspended = await countAppointments();
+  const suspendedBooking = await createPublicBooking(SLUG, {
+    name: "Cliente Suspendida",
+    phone: "1175555555",
+    serviceId: corte.id,
+    startsAt: at(day1, "12:00"),
+  });
+  check(!suspendedBooking.ok, "barbería suspendida: createPublicBooking → ok:false");
+  check((await countAppointments()) === beforeSuspended, "…y no se creó ningún turno");
+  check(
+    (await getAvailableSlots(SLUG, { serviceId: corte.id, date: day1, now: new Date() })) === null,
+    "barbería suspendida: getAvailableSlots → null",
+  );
+  check((await getPublicBarbershop(SLUG)) === null, "barbería suspendida: getPublicBarbershop → null");
+  check((await getOnlineServices(SLUG)).length === 0, "barbería suspendida: getOnlineServices → []");
+  check(!(await barbershopSlugExists(SLUG)), "barbería suspendida: barbershopSlugExists → false (404)");
+  await db.barbershop.update({ where: { id: shop.id }, data: { status: "ACTIVE" } });
+  check((await barbershopSlugExists(SLUG)) && (await getPublicBarbershop(SLUG)) !== null, "reactivada: vuelve a resolverse");
+  const reactivatedBooking = await createPublicBooking(SLUG, {
+    name: "Cliente Reactivada",
+    phone: "1175555556",
+    serviceId: corte.id,
+    startsAt: at(day1, "17:00"),
+  });
+  check(reactivatedBooking.ok, "reactivada: createPublicBooking → ok sin pasos manuales");
 
   // (e) Un barberId en el input se ignora: el turno queda sin asignar.
   for (const [label, barberId] of [

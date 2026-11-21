@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SignJWT } from "jose";
+import { signAdminSession } from "./admin-session";
 import { getSessionSecret, signSession, verifySession } from "./session";
 
 const secret = new TextEncoder().encode("test-secret-de-al-menos-32-caracteres!!");
@@ -35,6 +37,20 @@ describe("session", () => {
 
   it("un token firmado con otro secreto devuelve null", async () => {
     const token = await signSession(base, otherSecret);
+    expect(await verifySession(token, secret)).toBeNull();
+  });
+
+  it("un token de admin de la plataforma (audience platform-admin) no pasa verifySession", async () => {
+    expect(await verifySession(await signAdminSession({ adminId: "a1" }, secret), secret)).toBeNull();
+  });
+
+  it("un token con payload de barbería pero con audience platform-admin se rechaza", async () => {
+    const expiresAt = Date.now() + 60_000;
+    const token = await new SignJWT({ ...base, expiresAt })
+      .setProtectedHeader({ alg: "HS256" })
+      .setAudience("platform-admin")
+      .setExpirationTime(Math.floor(expiresAt / 1000))
+      .sign(secret);
     expect(await verifySession(token, secret)).toBeNull();
   });
 

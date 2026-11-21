@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { createSession, deleteSession } from "@/lib/auth";
 import { verifyPassword } from "@/lib/password";
+import { SUSPENDED_MESSAGE } from "@/lib/platform-admin";
 import { safeNextPath } from "@/proxy";
 
 export type LoginState = { error?: string; email?: string } | undefined;
@@ -32,11 +33,21 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   const user = await db.user.findUnique({
     where: { email: parsed.data.email },
-    select: { id: true, barbershopId: true, role: true, active: true, passwordHash: true },
+    select: {
+      id: true,
+      barbershopId: true,
+      role: true,
+      active: true,
+      passwordHash: true,
+      barbershop: { select: { status: true } },
+    },
   });
   const ok = await verifyPassword(parsed.data.password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !user.active || !user.passwordHash || !ok) return { error: GENERIC_ERROR, email };
+  // Solo después de verificar la contraseña: con una contraseña mala el error sigue siendo el genérico.
+  if (user.barbershop.status !== "ACTIVE") return { error: SUSPENDED_MESSAGE, email };
 
+  await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user);
   // TODO(job posterior): rate limit de login por IP + email (fuera de alcance de 001).
   redirect(safeNextPath(parsed.data.next));
