@@ -58,6 +58,9 @@ export async function verifySession(
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret, { algorithms: [ALGORITHM] });
+    // Los tokens de barbería nunca llevan `aud`: cualquier token con audience (p. ej. el de admin de la
+    // plataforma, `platform-admin`, firmado con el mismo secreto) se rechaza acá.
+    if (payload.aud !== undefined) return null;
     const { userId, barbershopId, role, expiresAt } = payload as Record<string, unknown>;
     if (
       typeof userId !== "string" ||

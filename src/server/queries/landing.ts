@@ -22,9 +22,10 @@ export type PublicLanding = {
 
 const gallerySelect = { id: true, storageKey: true, alt: true } as const;
 
+/** `null` si el slug no existe o la barbería está suspendida. */
 export async function getPublicLanding(slug: string): Promise<PublicLanding | null> {
   const shop = await db.barbershop.findUnique({
-    where: { slug },
+    where: { slug, status: "ACTIVE" },
     select: {
       logoUrl: true,
       coverImageKey: true,
@@ -86,11 +87,11 @@ export type PublicOpeningHours = { weekday: number; opensAt: string | null; clos
 /**
  * Horarios semanales públicos de una barbería, por slug. Sin caché: `updateOpeningHours` no
  * invalida el tag de branding, así que se lee por request (dentro de un `<Suspense>`).
- * `null` si el slug no existe.
+ * `null` si el slug no existe o la barbería está suspendida.
  */
 export async function getPublicOpeningHours(slug: string): Promise<PublicOpeningHours[] | null> {
   const shop = await db.barbershop.findUnique({
-    where: { slug },
+    where: { slug, status: "ACTIVE" },
     select: {
       openingHours: {
         select: { weekday: true, opensAt: true, closesAt: true, closed: true },

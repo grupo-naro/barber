@@ -28,9 +28,11 @@ export type PublicService = {
   durationMinutes: number;
 };
 
+// Solo barberías ACTIVE: una SUSPENDED no se muestra ni recibe reservas (como si no existiera).
+
 export async function getPublicBarbershop(slug: string): Promise<PublicBarbershop | null> {
   return db.barbershop.findUnique({
-    where: { slug },
+    where: { slug, status: "ACTIVE" },
     select: {
       slug: true,
       name: true,
@@ -44,10 +46,10 @@ export async function getPublicBarbershop(slug: string): Promise<PublicBarbersho
   });
 }
 
-/** Barbería por slug con su id, sólo para uso interno del servidor. */
+/** Barbería ACTIVE por slug con su id, sólo para uso interno del servidor (suspendida → `null`). */
 export async function resolveBarbershop(slug: string, client: Client = db) {
   return client.barbershop.findUnique({
-    where: { slug },
+    where: { slug, status: "ACTIVE" },
     select: { id: true, timezone: true },
   });
 }
@@ -63,7 +65,7 @@ const serviceSelect = {
 /** Servicios visibles online de la barbería del slug, en orden de catálogo. */
 export async function getOnlineServices(slug: string): Promise<PublicService[]> {
   const services = await db.service.findMany({
-    where: { barbershop: { slug }, active: true, showOnline: true },
+    where: { barbershop: { slug, status: "ACTIVE" }, active: true, showOnline: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: serviceSelect,
   });

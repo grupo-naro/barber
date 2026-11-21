@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { ADMIN_SESSION_COOKIE, verifyAdminSession } from "@/lib/admin-session";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { validateSlug } from "@/lib/slugs";
 
@@ -32,16 +33,55 @@ export function safeNextPath(next: string | null | undefined): string {
 
 export type RouteDecision = { action: "next" } | { action: "redirect"; location: string };
 
+/**
+ * `/login?suspended=1`: destino de `requireSession` cuando la barbería está suspendida. El JWT sigue siendo
+ * válido (el proxy no mira la DB), así que esta URL NO se redirige a `/dashboard`: si no, habría un loop
+ * `/login` ↔ `/dashboard`. Solo muestra el aviso; no da acceso a nada.
+ */
+export function isSuspendedNotice(search: string): boolean {
+  return new URLSearchParams(search).get("suspended") === "1";
+}
+
 /** Decisión de ruteo pura (testeable): `location` es path + query relativos al origen. */
 export function decideRoute(pathname: string, search: string, hasValidSession: boolean): RouteDecision {
   if (isPrivatePath(pathname) && !hasValidSession) {
     const next = encodeURIComponent(pathname + search);
     return { action: "redirect", location: `/login?next=${next}` };
   }
-  if (pathname === "/login" && hasValidSession) {
+  if (pathname === "/login" && hasValidSession && !isSuspendedNotice(search)) {
     return { action: "redirect", location: "/dashboard" };
   }
   return { action: "next" };
+}
+
+export const ADMIN_LOGIN_PATH = "/admin/login";
+
+/** `/admin` y `/admin/**` (no `/administracion` ni `/admin-x`). */
+export function isAdminPath(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
+/**
+ * Decisión pura para el panel de la plataforma (solo UX: la autorización real la hace `requireAdminSession`).
+ * `null` si el path no es de admin. Solo cuenta la cookie de admin: una sesión de barbería no sirve acá.
+ */
+export function decideAdminRoute(pathname: string, hasValidAdminSession: boolean): RouteDecision | null {
+  if (!isAdminPath(pathname)) return null;
+  if (pathname === ADMIN_LOGIN_PATH) {
+    return hasValidAdminSession ? { action: "redirect", location: "/admin" } : { action: "next" };
+  }
+  return hasValidAdminSession ? { action: "next" } : { action: "redirect", location: ADMIN_LOGIN_PATH };
+}
+
+/** Decisión de admin a partir del valor crudo de la cookie `admin_session` (verifica el JWT de admin). */
+export async function decideAdminRequest(
+  pathname: string,
+  adminCookie: string | undefined,
+  secret?: Uint8Array,
+): Promise<RouteDecision | null> {
+  if (!isAdminPath(pathname)) return null;
+  const admin = await verifyAdminSession(adminCookie, secret);
+  return decideAdminRoute(pathname, admin !== null);
 }
 
 /**
@@ -85,6 +125,16 @@ const NOT_FOUND_REWRITE = "/_not-found-slug/x";
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  // Panel de la plataforma: se resuelve ANTES del chequeo de slug (`admin` es reservado → sería 404).
+  const adminDecision = await decideAdminRequest(pathname, request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+  if (adminDecision) {
+    if (adminDecision.action === "redirect") {
+      return NextResponse.redirect(new URL(adminDecision.location, request.nextUrl.origin));
+    }
+    return NextResponse.next();
+  }
+
   // Solo verificamos el JWT cuando la decisión depende de la sesión.
   const needsSession = pathname === "/login" || isPrivatePath(pathname);
   if (!needsSession) {
@@ -114,5 +164,7 @@ export const config = {
     "/services/:path*",
     "/today/:path*",
     "/cash/:path*",
+    "/admin",
+    "/admin/:path*",
   ],
 };

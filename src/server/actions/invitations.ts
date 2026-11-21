@@ -13,6 +13,7 @@ import {
   isInvitationUsable,
   isPlausibleInvitationToken,
 } from "@/lib/invitations";
+import { invitationAllowsUser } from "@/lib/platform-admin";
 
 // Aceptar una invitación: ruta PÚBLICA que crea una sesión. Todo se revalida en el servidor; el token se busca
 // por su hash único, es de un solo uso y la sesión sale del `User` en la DB (nunca de datos del form).
@@ -48,20 +49,17 @@ export async function acceptInvitation(
     where: { tokenHash: await hashInvitationToken(token) },
     select: {
       id: true,
+      kind: true,
       userId: true,
       barbershopId: true,
       expiresAt: true,
       usedAt: true,
+      barbershop: { select: { status: true } },
       user: { select: { barbershopId: true, passwordHash: true, active: true } },
     },
   });
-  if (
-    !invitation ||
-    !isInvitationUsable(invitation, now) ||
-    invitation.user.passwordHash !== null ||
-    !invitation.user.active ||
-    invitation.user.barbershopId !== invitation.barbershopId
-  ) {
+  // INVITE: el usuario no tiene contraseña. RESET (nuevo acceso del dueño): la pisa. Barbería suspendida → no.
+  if (!invitation || !isInvitationUsable(invitation, now) || !invitationAllowsUser(invitation)) {
     return INVALID_LINK;
   }
 
@@ -79,8 +77,15 @@ export async function acceptInvitation(
       if (claimed.count !== 1) throw new InvitationAlreadyUsed();
 
       const updated = await tx.user.updateMany({
-        where: { id: invitation.userId, barbershopId: invitation.barbershopId, passwordHash: null, active: true },
-        data: { passwordHash },
+        where: {
+          id: invitation.userId,
+          barbershopId: invitation.barbershopId,
+          active: true,
+          // Un INVITE solo activa una cuenta sin contraseña; un RESET pisa la que haya.
+          ...(invitation.kind === "INVITE" ? { passwordHash: null } : {}),
+          barbershop: { status: "ACTIVE" },
+        },
+        data: { passwordHash, lastLoginAt: now },
       });
       if (updated.count !== 1) throw new InvitationAlreadyUsed();
 

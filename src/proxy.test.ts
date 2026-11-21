@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { decidePublicSlug, decideRoute, isPrivatePath, publicSlugFromPath, safeNextPath } from "./proxy";
+import { signAdminSession } from "./lib/admin-session";
+import { signSession, verifySession } from "./lib/session";
+import {
+  config,
+  decideAdminRequest,
+  decideAdminRoute,
+  decidePublicSlug,
+  decideRoute,
+  isAdminPath,
+  isPrivatePath,
+  isSuspendedNotice,
+  publicSlugFromPath,
+  safeNextPath,
+} from "./proxy";
 
 describe("proxy: safeNextPath (anti open-redirect)", () => {
   it("bloquea los bypass conocidos y cae en /dashboard", () => {
@@ -121,5 +134,88 @@ describe("proxy: decidePublicSlug (404 real para slugs inexistentes)", () => {
       expect(await decidePublicSlug(p, l.fn), p).toEqual({ action: "skip" });
       expect(l.calls, p).toEqual([]);
     }
+  });
+});
+
+describe("proxy: panel de la plataforma (/admin)", () => {
+  const secret = new TextEncoder().encode("test-secret-de-al-menos-32-caracteres!!");
+
+  it("isAdminPath solo matchea /admin y /admin/**", () => {
+    for (const p of ["/admin", "/admin/", "/admin/login", "/admin/barbershops/new"]) expect(isAdminPath(p), p).toBe(true);
+    for (const p of ["/administracion", "/admin-x", "/", "/dashboard", "/barberia-demo"]) expect(isAdminPath(p), p).toBe(false);
+  });
+
+  it("sin cookie de admin: /admin y /admin/** → /admin/login; /admin/login pasa", () => {
+    for (const p of ["/admin", "/admin/barbershops", "/admin/barbershops/new", "/admin/barbershops/abc"]) {
+      expect(decideAdminRoute(p, false), p).toEqual({ action: "redirect", location: "/admin/login" });
+    }
+    expect(decideAdminRoute("/admin/login", false)).toEqual({ action: "next" });
+  });
+
+  it("con cookie de admin: /admin/** pasa y /admin/login → /admin", () => {
+    expect(decideAdminRoute("/admin", true)).toEqual({ action: "next" });
+    expect(decideAdminRoute("/admin/barbershops/abc", true)).toEqual({ action: "next" });
+    expect(decideAdminRoute("/admin/login", true)).toEqual({ action: "redirect", location: "/admin" });
+  });
+
+  it("no aplica fuera de /admin", () => {
+    expect(decideAdminRoute("/dashboard", true)).toBeNull();
+    expect(decideAdminRoute("/barberia-demo", false)).toBeNull();
+  });
+
+  it("con el JWT real: admin pasa, una cookie de barbería (OWNER) en /admin/barbershops → /admin/login", async () => {
+    const adminToken = await signAdminSession({ adminId: "a1" }, secret);
+    const ownerToken = await signSession({ userId: "u1", barbershopId: "b1", role: "OWNER" }, secret);
+    expect(await decideAdminRequest("/admin/barbershops", adminToken, secret)).toEqual({ action: "next" });
+    expect(await decideAdminRequest("/admin/barbershops", ownerToken, secret)).toEqual({
+      action: "redirect",
+      location: "/admin/login",
+    });
+    expect(await decideAdminRequest("/admin", undefined, secret)).toEqual({ action: "redirect", location: "/admin/login" });
+    expect(await decideAdminRequest("/admin/login", adminToken, secret)).toEqual({ action: "redirect", location: "/admin" });
+    expect(await decideAdminRequest("/admin/login", ownerToken, secret)).toEqual({ action: "next" });
+    expect(await decideAdminRequest("/dashboard", adminToken, secret)).toBeNull();
+  });
+
+  it("la sesión de admin no da acceso al panel de barbería", async () => {
+    const adminToken = await signAdminSession({ adminId: "a1" }, secret);
+    const asBarbershop = await verifySession(adminToken, secret);
+    expect(asBarbershop).toBeNull();
+    expect(decideRoute("/dashboard", "", asBarbershop !== null)).toEqual({
+      action: "redirect",
+      location: "/login?next=%2Fdashboard",
+    });
+  });
+
+  it("decidePublicSlug('/admin') sigue siendo not-found (admin reservado) sin tocar la DB", async () => {
+    const calls: string[] = [];
+    expect(await decidePublicSlug("/admin", async (s) => (calls.push(s), true))).toEqual({ action: "not-found" });
+    expect(calls).toEqual([]);
+  });
+
+  it("el matcher incluye /admin y /admin/:path*", () => {
+    expect(config.matcher).toContain("/admin");
+    expect(config.matcher).toContain("/admin/:path*");
+  });
+});
+
+describe("proxy: barbería suspendida (sin loop /login ↔ /dashboard)", () => {
+  it("/login?suspended=1 con JWT válido NO redirige a /dashboard", () => {
+    expect(isSuspendedNotice("?suspended=1")).toBe(true);
+    expect(decideRoute("/login", "?suspended=1", true)).toEqual({ action: "next" });
+    expect(decideRoute("/login", "?suspended=1", false)).toEqual({ action: "next" });
+  });
+
+  it("/login sin el aviso sigue redirigiendo con sesión", () => {
+    expect(isSuspendedNotice("")).toBe(false);
+    expect(isSuspendedNotice("?suspended=0")).toBe(false);
+    expect(decideRoute("/login", "?next=%2Fcash", true)).toEqual({ action: "redirect", location: "/dashboard" });
+  });
+
+  it("recorrido: /dashboard (JWT válido) → requireSession manda a /login?suspended=1 → el proxy lo deja pasar", () => {
+    // 1. El proxy deja pasar /dashboard (JWT válido; la DB la mira getSession).
+    expect(decideRoute("/dashboard", "", true)).toEqual({ action: "next" });
+    // 2. getSession ve SUSPENDED → requireSession redirige a /login?suspended=1, que el proxy no rebota.
+    expect(decideRoute("/login", "?suspended=1", true)).toEqual({ action: "next" });
   });
 });

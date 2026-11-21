@@ -20,18 +20,28 @@ export type Session = {
   barbershopId: string;
   role: SessionRole;
   user: { id: string; name: string; email: string; role: SessionRole };
-  barbershop: { id: string; name: string; slug: string; timezone: string };
+  barbershop: {
+    id: string;
+    name: string;
+    slug: string;
+    timezone: string;
+    status: "ACTIVE" | "SUSPENDED";
+    plan: "FREE" | "BASIC" | "PRO";
+    planExpiresAt: Date | null;
+  };
 };
 
-/**
- * Lee la cookie, verifica el JWT y re-lee el usuario en la DB. Devuelve `null` si el token es inválido,
- * el usuario no existe, está inactivo o ya no pertenece al `barbershopId` del token. Memoizado por request.
- * Llamala dentro de un `<Suspense>` (lee cookies).
- */
-export const getSession = cache(async (): Promise<Session | null> => {
+/** Destino de `requireSession` cuando la barbería está suspendida (el proxy no lo rebota a `/dashboard`). */
+export const SUSPENDED_LOGIN_PATH = "/login?suspended=1";
+
+type SessionLookup = { session: Session | null; suspended: boolean };
+
+/** Lectura memoizada por request: la sesión y si se rechazó por barbería suspendida. */
+const lookupSession = cache(async (): Promise<SessionLookup> => {
+  const none = { session: null, suspended: false };
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const payload = await verifySession(token);
-  if (!payload) return null;
+  if (!payload) return none;
 
   const user = await db.user.findUnique({
     where: { id: payload.userId },
@@ -42,12 +52,16 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: true,
       active: true,
       barbershopId: true,
-      barbershop: { select: { id: true, name: true, slug: true, timezone: true } },
+      barbershop: {
+        select: { id: true, name: true, slug: true, timezone: true, status: true, plan: true, planExpiresAt: true },
+      },
     },
   });
-  if (!user || !user.active || user.barbershopId !== payload.barbershopId) return null;
+  if (!user || !user.active || user.barbershopId !== payload.barbershopId) return none;
+  // Barbería suspendida: las sesiones ya emitidas dejan de servir (vuelven a servir al reactivarla).
+  if (user.barbershop.status !== "ACTIVE") return { session: null, suspended: true };
 
-  return {
+  const session: Session = {
     userId: user.id,
     barbershopId: user.barbershopId,
     // El rol vigente es el de la DB (si cambió desde el login, manda la DB).
@@ -55,11 +69,22 @@ export const getSession = cache(async (): Promise<Session | null> => {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
     barbershop: user.barbershop,
   };
+  return { session, suspended: false };
 });
 
-/** Sesión obligatoria: sin sesión válida redirige a `/login`. */
+/**
+ * Lee la cookie, verifica el JWT y re-lee el usuario en la DB. Devuelve `null` si el token es inválido,
+ * el usuario no existe, está inactivo, ya no pertenece al `barbershopId` del token o su barbería está
+ * suspendida. Memoizado por request. Llamala dentro de un `<Suspense>` (lee cookies).
+ */
+export async function getSession(): Promise<Session | null> {
+  return (await lookupSession()).session;
+}
+
+/** Sesión obligatoria: sin sesión válida redirige a `/login` (o a `/login?suspended=1` si está suspendida). */
 export async function requireSession(): Promise<Session> {
-  const session = await getSession();
+  const { session, suspended } = await lookupSession();
+  if (suspended) redirect(SUSPENDED_LOGIN_PATH);
   if (!session) redirect("/login");
   return session;
 }

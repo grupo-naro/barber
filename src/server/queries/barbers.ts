@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { barberAccessStatus, type BarberAccessStatus } from "@/lib/barbers";
 import type { PayoutSchemeValue } from "@/lib/barbershop-settings";
 import { hashInvitationToken, isInvitationUsable, isPlausibleInvitationToken } from "@/lib/invitations";
+import { invitationAllowsUser, type InvitationKindValue } from "@/lib/platform-admin";
 
 export type BarberListItem = {
   id: string;
@@ -75,32 +76,26 @@ export async function getBarber(barbershopId: string, id: string): Promise<Barbe
   return user ? toItem(user, new Date()) : null;
 }
 
-export type InvitationPreview = { barbershopName: string; userName: string };
+export type InvitationPreview = { barbershopName: string; userName: string; kind: InvitationKindValue };
 
 /**
  * Invitación usable para el token crudo de la URL, buscada por su hash único. `null` si el token no existe,
- * venció, ya se usó o el usuario ya tiene contraseña: el llamador muestra siempre el mismo mensaje.
+ * venció, ya se usó, la barbería está suspendida o (para un INVITE) el usuario ya tiene contraseña: el
+ * llamador muestra siempre el mismo mensaje. Un RESET (nuevo acceso del dueño) vale aunque tenga contraseña.
  */
 export async function getUsableInvitation(token: string, now: Date = new Date()): Promise<InvitationPreview | null> {
   if (!isPlausibleInvitationToken(token)) return null;
   const invitation = await db.invitation.findUnique({
     where: { tokenHash: await hashInvitationToken(token) },
     select: {
+      kind: true,
       barbershopId: true,
       expiresAt: true,
       usedAt: true,
-      barbershop: { select: { name: true } },
+      barbershop: { select: { name: true, status: true } },
       user: { select: { name: true, barbershopId: true, passwordHash: true, active: true } },
     },
   });
-  if (
-    !invitation ||
-    !isInvitationUsable(invitation, now) ||
-    invitation.user.passwordHash !== null ||
-    !invitation.user.active ||
-    invitation.user.barbershopId !== invitation.barbershopId
-  ) {
-    return null;
-  }
-  return { barbershopName: invitation.barbershop.name, userName: invitation.user.name };
+  if (!invitation || !isInvitationUsable(invitation, now) || !invitationAllowsUser(invitation)) return null;
+  return { barbershopName: invitation.barbershop.name, userName: invitation.user.name, kind: invitation.kind };
 }
