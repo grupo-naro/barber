@@ -1,0 +1,253 @@
+// SaaS de gestión y reservas para barberías — modelo multi-tenant.
+// Toda tabla de negocio lleva `barbershopId`: el servidor SIEMPRE filtra por él.
+// Dinero en Decimal(12,2) (ARS). Instantes en UTC (DateTime); días de negocio
+// como @db.Date calculados en la timezone de la barbería.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  BARBER
+}
+
+enum PayoutScheme {
+  PERCENTAGE // el barbero cobra `payoutValue` % de lo facturado
+  FIXED_RENT // el barbero paga un alquiler fijo de silla (`payoutValue`) y se queda el resto
+  NONE // sin liquidación (p. ej. el dueño)
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CARD
+  OTHER
+}
+
+model Barbershop {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  logoUrl       String?
+  description   String?
+  address       String?
+  phone         String?
+  whatsapp      String?
+  /// Key relativa (`<barbershopId>/<archivo>`) de la portada en el storage de medios; URL pública `/media/<key>`.
+  coverImageKey String?
+  /// Handle de Instagram normalizado, sin `@`.
+  instagram     String?
+  googleMapsUrl String?
+  timezone      String   @default("America/Argentina/Buenos_Aires")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  openingHours   OpeningHours[]
+  users          User[]
+  services       Service[]
+  customers      Customer[]
+  appointments   Appointment[]
+  serviceRecords ServiceRecord[]
+  cashCloses     CashRegisterClose[]
+  galleryImages  GalleryImage[]
+}
+
+/// Foto de la galería pública de la barbería. El archivo vive en el storage de medios bajo `storageKey`.
+model GalleryImage {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  storageKey   String     @unique
+  alt          String?
+  sortOrder    Int
+  createdAt    DateTime   @default(now())
+
+  @@index([barbershopId, sortOrder])
+}
+
+/// Horario de atención por día de semana (0 = domingo … 6 = sábado), "HH:mm" en la timezone de la barbería.
+model OpeningHours {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  weekday      Int
+  opensAt      String?
+  closesAt     String?
+  closed       Boolean    @default(false)
+
+  @@unique([barbershopId, weekday])
+}
+
+/// Usuario del panel. Un OWNER también puede atender (tener turnos y cortes).
+model User {
+  id           String       @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  email        String       @unique
+  passwordHash String?
+  name         String
+  role         Role         @default(BARBER)
+  active       Boolean      @default(true)
+  payoutScheme PayoutScheme @default(NONE)
+  payoutValue  Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  appointments   Appointment[]
+  serviceRecords ServiceRecord[]
+  payouts        BarberPayout[]
+  closesDone     CashRegisterClose[] @relation("ClosedBy")
+
+  @@index([barbershopId])
+}
+
+model Service {
+  id              String     @id @default(cuid())
+  barbershopId    String
+  barbershop      Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  price           Decimal    @db.Decimal(12, 2) // precio vigente
+  durationMinutes Int
+  active          Boolean    @default(true)
+  showOnline      Boolean    @default(true) // visible en la web pública
+  sortOrder       Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  appointments Appointment[]
+  recordItems  ServiceRecordItem[]
+
+  @@index([barbershopId, active])
+}
+
+model Customer {
+  id           String     @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  name         String
+  phone        String
+  notes        String? // notas técnicas de corte ("2 al costado, tijera arriba")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  appointments   Appointment[]
+  serviceRecords ServiceRecord[]
+
+  @@unique([barbershopId, phone])
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  barbershopId String
+  barbershop   Barbershop        @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer          @relation(fields: [customerId], references: [id])
+  barberId     String?
+  barber       User?             @relation(fields: [barberId], references: [id])
+  serviceId    String
+  service      Service           @relation(fields: [serviceId], references: [id])
+  startsAt     DateTime
+  endsAt       DateTime
+  status       AppointmentStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  serviceRecord ServiceRecord?
+
+  @@index([barbershopId, startsAt])
+  @@index([barberId, startsAt])
+}
+
+/// "Cuaderno digital": un corte realizado (agendado o walk-in).
+model ServiceRecord {
+  id            String        @id @default(cuid())
+  barbershopId  String
+  barbershop    Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  businessDate  DateTime      @db.Date // día de negocio en la timezone de la barbería
+  dailyNumber   Int // correlativo del día: 1, 2, 3…
+  barberId      String
+  barber        User          @relation(fields: [barberId], references: [id])
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  appointmentId String?       @unique
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  paymentMethod PaymentMethod
+  total         Decimal       @db.Decimal(12, 2)
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  items       ServiceRecordItem[]
+  cashCloseId String?
+  cashClose   CashRegisterClose?  @relation(fields: [cashCloseId], references: [id])
+
+  @@unique([barbershopId, businessDate, dailyNumber])
+  @@index([barbershopId, businessDate])
+  @@index([barberId, businessDate])
+}
+
+/// Servicio cobrado en un registro, con el precio histórico al momento del corte.
+model ServiceRecordItem {
+  id              String        @id @default(cuid())
+  serviceRecordId String
+  serviceRecord   ServiceRecord @relation(fields: [serviceRecordId], references: [id], onDelete: Cascade)
+  serviceId       String?
+  service         Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceName     String // snapshot del nombre
+  priceCharged    Decimal       @db.Decimal(12, 2)
+
+  @@index([serviceRecordId])
+}
+
+/// Cierre de caja diario.
+model CashRegisterClose {
+  id            String     @id @default(cuid())
+  barbershopId  String
+  barbershop    Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  businessDate  DateTime   @db.Date
+  totalCash     Decimal    @db.Decimal(12, 2)
+  totalTransfer Decimal    @db.Decimal(12, 2)
+  totalCard     Decimal    @db.Decimal(12, 2)
+  totalOther    Decimal    @db.Decimal(12, 2)
+  total         Decimal    @db.Decimal(12, 2)
+  closedById    String
+  closedBy      User       @relation("ClosedBy", fields: [closedById], references: [id])
+  closedAt      DateTime   @default(now())
+  notes         String?
+
+  records ServiceRecord[]
+  payouts BarberPayout[]
+
+  @@unique([barbershopId, businessDate])
+}
+
+/// Liquidación de un barbero dentro de un cierre (snapshot del acuerdo vigente).
+model BarberPayout {
+  id           String            @id @default(cuid())
+  cashCloseId  String
+  cashClose    CashRegisterClose @relation(fields: [cashCloseId], references: [id], onDelete: Cascade)
+  barberId     String
+  barber       User              @relation(fields: [barberId], references: [id])
+  scheme       PayoutScheme
+  schemeValue  Decimal           @db.Decimal(12, 2)
+  grossAmount  Decimal           @db.Decimal(12, 2) // facturado por el barbero ese día
+  barberAmount Decimal           @db.Decimal(12, 2) // lo que le corresponde al barbero
+  shopAmount   Decimal           @db.Decimal(12, 2) // lo que queda para la barbería
+
+  @@unique([cashCloseId, barberId])
+}

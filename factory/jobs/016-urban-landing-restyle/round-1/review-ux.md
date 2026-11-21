@@ -1,0 +1,9 @@
+VERDICT: PASS
+
+## Hallazgos
+- [nit] `src/app/[slug]/hero.tsx` (CTAs): "Escribinos por WhatsApp" es blanco sólido sobre negro y compite visualmente con "Reservar turno" (rojo). Sigue siendo legible cuál es el principal (va primero, ícono de calendario), pero se podría bajar el peso del secundario (outline/oscuro) para que la reserva domine.
+- [nit] Botón flotante de WhatsApp: en el screenshot full-page aparece cerca del título "Servicios", pero es un artefacto de la captura (`position: fixed`, 56px, bottom-right, solo mobile). En uso real queda en la esquina inferior derecha, y se oculta (IntersectionObserver) mientras `#reservar` está visible, así que no tapa horarios ni "Confirmar reserva". Sobre la lista de servicios puede tapar un borde del precio al hacer scroll, pero no bloquea contenido que no se pueda mover; aceptable.
+- [nit] Los nombres de servicio en mayúsculas condensadas con descripción en sentence-case: legibles en el screenshot a 390px (nombres largos como "PERFILADO DE CEJAS" / "ARREGLO DE BARBA" cortan en 2 líneas sin desborde). Sin problema.
+
+## Revisado
+Reserva: tocar "Reservar turno" en el hero (1, ancla a `#reservar`) → servicio (2) → día/horario (3-4) → datos + confirmar (5-6); el flujo del formulario no cambió respecto de main (solo clases visuales en booking-form/booking-section). Botones sticker `h-12` (48px) y link de Instagram `min-h-11` (44px), cumplen ≥44px. Contraste documentado AA en landing.css, foco visible 3px por superficie. Movimiento: el giro del poste (`landing-pole-spin`) y las transiciones de botones están bajo `prefers-reduced-motion: no-preference`; con reduce no hay animación ni transición, y el smooth-scroll también. Las rotaciones (-rotate-3/-6) son estáticas y decorativas. No levanté servidor; revisé screenshot mobile y código.

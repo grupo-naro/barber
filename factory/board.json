@@ -1,0 +1,449 @@
+{
+  "config": {
+    "max_concurrent_jobs": 2,
+    "max_rework": 2
+  },
+  "active_slots": [
+    {
+      "slot": 1,
+      "job": null,
+      "port": 3001
+    },
+    {
+      "slot": 2,
+      "job": null,
+      "port": 3002
+    }
+  ],
+  "merge_lock": null,
+  "updated": "2026-11-21T15:11:54.935Z",
+  "jobs": [
+    {
+      "id": "001-seed-and-auth",
+      "title": "Seed + login por roles y sesión multi-tenant",
+      "branch": "factory/001-seed-and-auth",
+      "worktree": ".worktrees/001-seed-and-auth",
+      "scope": [
+        "prisma/seed.ts",
+        "prisma.config.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        ".env.example",
+        "src/lib/auth.ts",
+        "src/lib/session.ts",
+        "src/lib/session.test.ts",
+        "src/lib/password.ts",
+        "src/lib/password.test.ts",
+        "src/proxy.ts",
+        "src/proxy.test.ts",
+        "src/server/actions/auth.ts",
+        "src/app/(auth)/**",
+        "src/app/(dashboard)/layout.tsx",
+        "src/app/(dashboard)/dashboard/**"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "CHANGES",
+          "ux": "PASS",
+          "ui": "PASS",
+          "code": "PASS"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-001-seed-and-auth",
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana"
+    },
+    {
+      "id": "004-public-booking-page",
+      "title": "Página pública /[slug] con reservas online",
+      "branch": "factory/004-public-booking-page",
+      "worktree": ".worktrees/004-public-booking-page",
+      "scope": [
+        "src/lib/slots.ts",
+        "src/lib/slots.test.ts",
+        "src/server/queries/booking.ts",
+        "src/server/booking.ts",
+        "src/server/actions/booking.ts",
+        "src/app/[slug]/**",
+        "scripts/booking-smoke.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "PASS",
+          "ux": "CHANGES",
+          "ui": "PASS",
+          "code": "PASS"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-004-public-booking-page",
+      "decision": "APPROVE",
+      "note": "mergeado a main (APPROVE automático)"
+    },
+    {
+      "id": "002-barbershop-settings",
+      "title": "Configuración de la barbería",
+      "branch": "factory/002-barbershop-settings",
+      "worktree": ".worktrees/002-barbershop-settings",
+      "scope": [
+        "src/app/(dashboard)/dashboard/settings/**",
+        "src/server/actions/barbershop.ts",
+        "src/server/queries/barbershop.ts",
+        "src/lib/barbershop-settings.ts",
+        "src/lib/barbershop-settings.test.ts",
+        "src/app/[slug]/data.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "001-seed-and-auth"
+      ],
+      "builder": "builder-002-barbershop-settings",
+      "decision": "APPROVE",
+      "note": "mergeado a main (APPROVE automático, 1 ronda)"
+    },
+    {
+      "id": "003-services-and-bulk-pricing",
+      "title": "Servicios y actualización masiva de precios",
+      "branch": "factory/003-services-and-bulk-pricing",
+      "worktree": ".worktrees/003-services-and-bulk-pricing",
+      "scope": [
+        "src/app/(dashboard)/dashboard/services/**",
+        "src/server/actions/services.ts",
+        "src/server/queries/services.ts",
+        "src/lib/pricing.ts",
+        "src/lib/pricing.test.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "001-seed-and-auth"
+      ],
+      "builder": "builder-003-services-and-bulk-pricing",
+      "decision": "APPROVE",
+      "note": "mergeado a main (APPROVE automático, 1 ronda)"
+    },
+    {
+      "id": "005-digital-notebook-and-walkins",
+      "title": "Cuaderno digital y walk-ins",
+      "branch": "factory/005-digital-notebook-and-walkins",
+      "worktree": ".worktrees/005-digital-notebook-and-walkins",
+      "scope": [
+        "src/app/(dashboard)/dashboard/today/**",
+        "src/server/actions/records.ts",
+        "src/server/queries/records.ts",
+        "src/server/records.ts",
+        "src/lib/records.ts",
+        "src/lib/records.test.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "001-seed-and-auth"
+      ],
+      "builder": "builder-005-digital-notebook-and-walkins",
+      "decision": "APPROVE",
+      "note": "mergeado a main (APPROVE automático, 1 ronda)"
+    },
+    {
+      "id": "006-cash-register-and-commissions",
+      "title": "Cierre de caja y liquidaciones",
+      "branch": "factory/006-cash-register-and-commissions",
+      "worktree": ".worktrees/006-cash-register-and-commissions",
+      "scope": [
+        "src/lib/payouts.ts",
+        "src/lib/payouts.test.ts",
+        "src/server/actions/cash.ts",
+        "src/server/queries/cash.ts",
+        "src/app/(dashboard)/dashboard/cash/**",
+        "scripts/cash-smoke.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "PASS",
+          "ux": "PASS",
+          "ui": "PASS",
+          "code": "CHANGES"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [
+        "001-seed-and-auth"
+      ],
+      "builder": "builder-006-cash-register-and-commissions",
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana"
+    },
+    {
+      "id": "007-dashboard-nav",
+      "title": "Navegación del panel",
+      "branch": "factory/007-dashboard-nav",
+      "worktree": ".worktrees/007-dashboard-nav",
+      "scope": [
+        "src/app/(dashboard)/layout.tsx",
+        "src/app/(dashboard)/dashboard/page.tsx",
+        "src/components/dashboard-nav.tsx",
+        "src/lib/dashboard-nav.ts",
+        "src/lib/dashboard-nav.test.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-007-dashboard-nav",
+      "decision": "APPROVE",
+      "note": "mergeado a main (APPROVE automático, 1 ronda)"
+    },
+    {
+      "id": "008-reserved-slugs-and-404",
+      "title": "Slugs reservados y 404 real",
+      "branch": "factory/008-reserved-slugs-and-404",
+      "worktree": ".worktrees/008-reserved-slugs-and-404",
+      "scope": [
+        "src/lib/slugs.ts",
+        "src/lib/slugs.test.ts",
+        "src/proxy.ts",
+        "src/proxy.test.ts",
+        "src/server/queries/slug-exists.ts",
+        "src/app/[slug]/page.tsx",
+        "src/app/[slug]/data.ts",
+        "src/app/not-found.tsx",
+        "src/app/[slug]/not-found.tsx"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-008-reserved-slugs-and-404",
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana"
+    },
+    {
+      "id": "013-hourly-booking-no-barber",
+      "title": "Reservas por hora sin elegir barbero",
+      "branch": "factory/013-hourly-booking-no-barber",
+      "worktree": ".worktrees/013-hourly-booking-no-barber",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "prisma/seed.ts",
+        "src/lib/slots.ts",
+        "src/lib/slots.test.ts",
+        "src/lib/records.ts",
+        "src/lib/records.test.ts",
+        "src/server/booking.ts",
+        "src/server/queries/booking.ts",
+        "src/server/actions/booking.ts",
+        "src/server/records.ts",
+        "src/server/queries/records.ts",
+        "src/server/actions/records.ts",
+        "src/app/[slug]/booking-section.tsx",
+        "src/app/[slug]/booking-form.tsx",
+        "src/app/[slug]/format.ts",
+        "src/app/(dashboard)/dashboard/today/page.tsx",
+        "src/app/(dashboard)/dashboard/today/appointment-actions.tsx",
+        "src/app/(dashboard)/dashboard/today/fields.tsx",
+        "scripts/booking-smoke.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-013-hourly-booking-no-barber",
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "014-landing-content",
+      "title": "Contenido de la landing: fotos y redes",
+      "branch": "factory/014-landing-content",
+      "worktree": ".worktrees/014-landing-content",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "next.config.ts",
+        ".gitignore",
+        ".env.example",
+        "src/lib/media.ts",
+        "src/lib/media.test.ts",
+        "src/lib/landing.ts",
+        "src/lib/landing.test.ts",
+        "src/lib/slugs.ts",
+        "src/lib/slugs.test.ts",
+        "src/lib/barbershop-settings.ts",
+        "src/lib/barbershop-settings.test.ts",
+        "src/server/media-storage.ts",
+        "src/server/actions/landing.ts",
+        "src/server/actions/barbershop.ts",
+        "src/server/queries/landing.ts",
+        "src/app/media/[...path]/route.ts",
+        "src/app/[slug]/data.ts",
+        "src/app/(dashboard)/dashboard/settings/**"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "PASS",
+          "ux": "PASS",
+          "ui": "CHANGES",
+          "code": "PASS"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-014-landing-content",
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "015-public-landing-redesign",
+      "title": "Landing pública oscura y elegante",
+      "branch": "factory/015-public-landing-redesign",
+      "worktree": ".worktrees/015-public-landing-redesign",
+      "scope": [
+        "src/app/[slug]/**",
+        "src/server/queries/landing.ts",
+        "next.config.ts"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "014-landing-content"
+      ],
+      "builder": "builder-015-public-landing-redesign",
+      "decision": "APPROVE",
+      "note": "mergeado a main (APPROVE automático, 1 ronda)"
+    },
+    {
+      "id": "016-urban-landing-restyle",
+      "title": "Landing con estilo urbano",
+      "branch": "factory/016-urban-landing-restyle",
+      "worktree": ".worktrees/016-urban-landing-restyle",
+      "scope": [
+        "src/app/[slug]/**"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "PASS",
+          "ux": "PASS",
+          "ui": "PASS",
+          "code": "CHANGES"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [
+        "015-public-landing-redesign"
+      ],
+      "builder": "builder-016-urban-landing-restyle",
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana (deuda: 404 global sin estilo urbano)"
+    }
+  ]
+}

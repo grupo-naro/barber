@@ -1,0 +1,34 @@
+# Backlog — MVP v1.0
+
+`/factory next` toma los primeros ítems `- [ ]` cuyas dependencias ya estén en `done`, tantos como slots libres haya (máximo 2), y los corre en paralelo
+si sus scopes no chocan. El ID del job es el prefijo de cada ítem. `área` es una pista para el spec-writer;
+el scope real sale de `## Target Files (Scope)` en cada `spec.md`.
+
+- [x] 001-seed-and-auth: Seed de datos realistas (una barbería con 3 barberos, servicios, clientes y turnos de la semana) + login por roles (OWNER / BARBER) y sesión multi-tenant verificada en servidor y en `proxy.ts`. · área: `prisma/seed.ts`, `src/lib/auth.ts`, `src/proxy.ts`, `src/app/(auth)/**`, package.json → 001-seed-and-auth
+- [x] 002-barbershop-settings: Panel de configuración de la barbería (logo, nombre, descripción, dirección, WhatsApp, horario de apertura y cierre por día, reglas de liquidación por barbero). · área: `src/app/(dashboard)/settings/**`, `src/server/actions/barbershop.ts` · depende de: 001 → 002-barbershop-settings
+- [x] 003-services-and-bulk-pricing: CRUD de servicios + actualización masiva de precios (% o monto fijo, con redondeo configurable a $500 o $1000). · área: `src/app/(dashboard)/services/**`, `src/server/actions/services.ts`, `src/lib/pricing.ts` · depende de: 001 → 003-services-and-bulk-pricing
+- [x] 004-public-booking-page: Página pública `/[slug]` con el branding de la barbería, el catálogo de servicios y un motor de reserva online con cálculo real de slots libres. · área: `src/app/[slug]/**`, `src/lib/slots.ts`, `src/server/actions/booking.ts` → 004-public-booking-page
+- [x] 005-digital-notebook-and-walkins: "Cuaderno Digital" del día: turnos de hoy, completar turnos agendados y registrar cortes walk-in rápidos con historial y notas del cliente. · área: `src/app/(dashboard)/today/**`, `src/server/actions/records.ts` · depende de: 001 → 005-digital-notebook-and-walkins
+- [x] 006-cash-register-and-commissions: Cierre de caja diario desglosado por medio de pago y liquidación automática de cada barbero según su acuerdo. · área: `src/app/(dashboard)/cash/**`, `src/server/actions/cash.ts`, `src/lib/payouts.ts` · depende de: 001 → 006-cash-register-and-commissions
+
+## v1.1 — seguimientos de las reviews del MVP
+
+- [x] 007-dashboard-nav: Navegación del panel: menú en el layout del dashboard con links a Hoy, Servicios, Caja y Configuración (Servicios, Caja y Configuración solo para OWNER), activo resaltado, mobile-first (barra inferior o menú compacto). · área: `src/app/(dashboard)/layout.tsx`, `src/app/(dashboard)/dashboard/page.tsx`, `src/components/dashboard-nav.tsx` → 007-dashboard-nav
+- [x] 008-reserved-slugs-and-404: Slugs reservados (`login`, `dashboard`, `api`, `_next` y similares) rechazados al validar un slug + 404 real (status HTTP 404) para slugs inexistentes en `/[slug]`, también con `next start`. · área: `src/proxy.ts`, `src/lib/slugs.ts`, `src/app/[slug]/**` → 008-reserved-slugs-and-404
+- [ ] 009-fixed-rent-rule: ⚠ DECIDIR ANTES DE CORRER: regla de liquidación del alquiler fijo. Hoy: alquiler por día trabajado, el saldo puede quedar negativo. Default si no se especifica otra cosa: alquiler **mensual** que NO se descuenta en el cierre diario (el barbero cobra el 100% de lo suyo en el día) + resumen mensual por barbero con "alquiler del mes vs. facturado" en la pantalla de Caja. Ajustar también el seed (Nico: $120.000 mensual). · área: `src/lib/payouts.ts`, `src/app/(dashboard)/dashboard/cash/**`, `src/server/queries/cash.ts`, `prisma/seed.ts`
+- [ ] 010-reopen-cash-close: Reabrir un cierre de caja (solo OWNER, con confirmación y motivo obligatorio): desvincula los cortes, borra el cierre y sus liquidaciones y deja registro de quién y por qué. · área: `src/server/actions/cash.ts`, `src/app/(dashboard)/dashboard/cash/**` · depende de: 009
+- [ ] 011-customer-history-visibility: ⚠ DECIDIR ANTES DE CORRER: qué ve un BARBER en la ficha del cliente. Default si no se especifica otra cosa: ve las notas técnicas y las fechas/servicios de todos los cortes (sirve para atender), pero los montos solo de sus propios cortes; el OWNER ve todo. · área: `src/app/(dashboard)/dashboard/today/customers/**`, `src/server/queries/records.ts`
+- [ ] 012-logo-https-only: La URL del logo solo acepta `https:` (rechaza `http:`, `javascript:`, `data:`), con mensaje claro en el formulario. · área: `src/lib/barbershop-settings.ts`, `src/lib/barbershop-settings.test.ts`
+
+## v1.2 — reservas por hora sin barbero (pedido del dueño)
+
+- [x] 013-hourly-booking-no-barber: Reserva online sin elegir barbero (lo decide la barbería) con horarios en punto (10:00, 11:00, …) dentro del horario de atención; el barbero se asigna al completar el turno. Reglas decididas por el dueño: SIN límite de reservas por horario (el turno es orientativo; en el local se atiende por orden de llegada), todo servicio ocupa 1 horario, al completar: si lo marca un BARBER queda a su nombre, si lo marca el OWNER elige de la lista de barberos (default: él mismo). · área: `prisma/schema.prisma`, `prisma/migrations/**`, `prisma/seed.ts`, `src/lib/slots.ts`, `src/server/booking.ts`, `src/server/*/booking.ts`, `src/app/[slug]/**`, `src/app/(dashboard)/dashboard/today/**`, `src/server/*/records.ts`, `src/lib/records.ts` → 013-hourly-booking-no-barber
+
+## v1.3 — landing pública personalizada (pedido del dueño)
+
+- [x] 014-landing-content: Contenido de la landing cargable desde el panel: fotos de trabajos (galería) y foto de portada subidas al **disco del servidor** (carpeta configurable por env, servidas por la app), Instagram, WhatsApp y link de Google Maps. Sección "Página pública" en Configuración (solo OWNER). · área: `prisma/**`, `src/lib/storage.ts`, `src/app/media/**`, `src/app/(dashboard)/dashboard/settings/**`, `src/server/*/landing.ts`, `.env.example`, `.gitignore` → 014-landing-content
+- [x] 015-public-landing-redesign: Rediseño de `/[slug]` como landing oscura y elegante: portada con logo y CTA "Reservar", servicios, galería de trabajos, horarios, ubicación (Google Maps), Instagram y botón de WhatsApp; la reserva por hora (013) se mantiene. · área: `src/app/[slug]/**` · depende de: 014-landing-content → 015-public-landing-redesign
+
+## v1.4 — estilo urbano (pedido del dueño, referencia: logo "Lo de Fanty Barbershop")
+
+- [x] 016-urban-landing-restyle: Reemplazar el estilo "oscuro y elegante" de la landing pública por uno **urbano**, igual para todas las barberías, con los colores del logo de referencia (negro, blanco, azul royal y rojo del poste de barbería): lettering con carácter (display condensada + script tipo graffiti como acento), contornos gruesos tipo sticker, motivo de franjas del poste. Sin cambios de datos ni de funcionalidad. · área: `src/app/[slug]/**` → 016-urban-landing-restyle

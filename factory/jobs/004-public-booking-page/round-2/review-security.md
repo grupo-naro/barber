@@ -1,0 +1,8 @@
+VERDICT: PASS
+
+## Hallazgos
+- [nit] `src/server/booking.ts:101-111`: el nuevo upsert (`createMany({ skipDuplicates })` + `findUniqueOrThrow` + `update` condicional) está bien acotado al tenant. El `INSERT … ON CONFLICT DO NOTHING` usa `barbershopId: shop.id` (del slug resuelto en el servidor). El `findUniqueOrThrow` usa el compuesto `barbershopId_phone`. El `update` por `id` usa el id que devolvió esa query filtrada, así que no puede tocar un `Customer` de otra barbería. En READ COMMITTED, el `ON CONFLICT` espera al commit de la otra transacción y el `SELECT` siguiente ve la fila, así que no hay carrera ni abort. Sigue abierto el nit de la ronda 1: un anónimo que conoce un teléfono puede renombrar al cliente. El builder lo justifica con el spec ("sólo actualiza `name` si cambia") y lo acepto como decisión de producto → seguimiento: `update: {}` o guardar el nombre en el turno cuando el panel muestre clientes.
+- [nit] Siguen como seguimientos fuera de alcance (aceptados): rate limit o captcha en `bookAppointment`, exclusion constraint en DB (otros caminos que creen o muevan `Appointment` tienen que tomar `pg_advisory_xact_lock(hashtext(barberId))`), `logoUrl` arbitrario en `<img>` y 404 con status 200 en `next start`.
+
+## Revisado
+Diff `main...HEAD` (12 archivos) y en particular f7d6e09. `appointmentId` ya no llega al navegador: `BookingFormState` es `{ ok, startsAt, barberName }`. El upsert de `Customer` sigue scoped por `barbershopId` y nunca toca `notes`. Los cambios de UI (`shop-header`, `booking-form`, `booking-section`) sólo muestran datos públicos (precio del servicio, teléfono y WhatsApp de la barbería) y no usan `dangerouslySetInnerHTML` ni `NEXT_PUBLIC_*`. El resto quedó igual que en la ronda 1 (PASS).

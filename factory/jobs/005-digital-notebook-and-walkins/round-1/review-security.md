@@ -1,0 +1,9 @@
+VERDICT: PASS
+
+## Hallazgos
+- [nit] `src/server/queries/records.ts:144` (`getCustomerHistory`) / `customers/[id]/page.tsx`: un BARBER puede abrir la ficha de cualquier cliente de su barbería por id y ver los últimos 10 cortes de todos los barberos (con totales). Está dentro del tenant y el spec no lo restringe; si el negocio quiere que el BARBER no vea montos de otros barberos, filtrar `serviceRecords` por `barberId` cuando `role === "BARBER"` o no mostrar el total.
+- [nit] `src/server/actions/records.ts:160` (`lookupCustomer`): permite enumerar teléfonos → nombre/notas de clientes de la propia barbería sin límite de frecuencia. Riesgo bajo (requiere sesión y queda en el tenant); considerar un rate limit liviano si se expone a más roles.
+- [nit] `src/server/records.ts:177` (`setTodayAppointmentStatus`) y `completeAppointmentRecord`: el mensaje "ya no está pendiente" vs "no encontramos" sólo se distingue con el mismo `where` (tenant + día + barbero del BARBER), así que no filtra la existencia de turnos ajenos. OK, sólo se deja constancia.
+
+## Revisado
+Diff completo de `main...HEAD` (actions/queries/records server, página `today`, ficha `customers/[id]`, forms): todas las queries y mutaciones filtran por `barbershopId` de `requireSession()` (re-validada contra DB); turnos vía `findFirst`/`updateMany` con `{id, barbershopId, día, status, barberId si BARBER}`; `serviceIds` validados contra la barbería y activos con precio leído de la DB dentro de la transacción; `barberId` de walk-in forzado a la sesión para BARBER en el server y verificado activo + mismo tenant para OWNER; cliente por `barbershopId_phone` y notas con `updateMany {id, barbershopId}`; ficha con `findFirst {id, barbershopId}` → 404; Zod `safeParse` antes de sesión en toda action; errores internos genéricos y logueados; sin `dangerouslySetInnerHTML`, secretos ni cambios en páginas públicas.

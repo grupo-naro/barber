@@ -1,0 +1,40 @@
+const ars = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
+
+/** Precio decimal ("12000.00") en ARS: "$ 12.000,00". Se formatea el string, sin pasar por float. */
+export function formatPrice(price: string): string {
+  return ars.format(price as Intl.StringNumericLiteral);
+}
+
+const longDate = new Intl.DateTimeFormat("es-AR", {
+  timeZone: "UTC",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+const shortDate = new Intl.DateTimeFormat("es-AR", {
+  timeZone: "UTC",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+/** "2026-11-20" → "viernes, 20 de noviembre de 2026" (fecha de calendario, sin corrimiento de zona). */
+export function formatLongDate(date: string): string {
+  const text = longDate.format(new Date(`${date}T12:00:00.000Z`));
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "2026-11-20" → "20/11/2026". */
+export function formatShortDate(date: string): string {
+  return shortDate.format(new Date(`${date}T12:00:00.000Z`));
+}
+
+/** Controles nativos (select, textarea) con objetivo táctil ≥ 44px y tokens de tema. */
+export const nativeControlClass =
+  "min-h-11 w-full rounded-lg border border-input bg-background px-2.5 py-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 disabled:opacity-50 md:text-sm dark:bg-input/30";
+
+/** Chip seleccionable (label que envuelve un checkbox/radio oculto), ≥ 44px. */
+export const chipClass =
+  "inline-flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-full border border-input bg-background px-4 py-2 text-sm font-medium transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-disabled:cursor-not-allowed has-disabled:opacity-50";

@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Software Factory</title>
+<style>
+  :root {
+    --bg: #fafafa; --panel: #ffffff; --ink: #18181b; --muted: #71717a; --line: #e4e4e7; --well: #f4f4f5;
+    --pass: #15803d; --pass-bg: #dcfce7; --chg: #b91c1c; --chg-bg: #fee2e2;
+    --pend: #a1a1aa; --human: #b45309; --human-bg: #fef3c7; --accent: #2563eb; --accent-bg: #dbeafe;
+    --s1: #7c3aed; --s2: #0891b2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #09090b; --panel: #18181b; --ink: #f4f4f5; --muted: #a1a1aa; --line: #27272a; --well: #111113;
+      --pass: #4ade80; --pass-bg: #14532d; --chg: #f87171; --chg-bg: #450a0a;
+      --pend: #52525b; --human: #fbbf24; --human-bg: #451a03; --accent: #60a5fa; --accent-bg: #172554;
+      --s1: #a78bfa; --s2: #22d3ee;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  code, .mono { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 20px 16px 4px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .pill { border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+  .pill.human { background: var(--human-bg); color: var(--human); }
+  .pill.lock { background: var(--accent-bg); color: var(--accent); }
+  h2.section { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 14px 16px 8px; }
+
+  /* slots */
+  .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding: 0 16px; }
+  .slot { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 10px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+  .slot.free { border-left-style: dashed; color: var(--muted); justify-content: center; align-items: center; }
+  .slot .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .slot .label { font-size: 11px; font-weight: 700; color: var(--c); text-transform: uppercase; letter-spacing: .06em; }
+  .slot .title { font-weight: 600; }
+  .slot dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 12px; }
+  .slot dt { color: var(--muted); } .slot dd { margin: 0; overflow-wrap: anywhere; }
+  .scope { display: flex; flex-wrap: wrap; gap: 4px; }
+  .scope code { background: color-mix(in srgb, var(--c, var(--muted)) 14%, transparent); color: var(--ink);
+    padding: 1px 6px; border-radius: 4px; font-size: 11px; }
+
+  /* pipeline */
+  .board { display: grid; grid-template-columns: repeat(7, minmax(180px, 1fr)); gap: 10px; padding: 0 16px 32px; overflow-x: auto; }
+  .col h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    margin: 0 0 8px; display: flex; justify-content: space-between; }
+  .stack { display: flex; flex-direction: column; gap: 8px; min-height: 64px; border-radius: 10px; padding: 4px; background: var(--well); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%;
+    cursor: pointer; text-align: left; font: inherit; color: inherit; transition: border-color .15s, transform .15s; position: relative; }
+  .card:hover, .card:focus-visible { border-color: var(--accent); outline: none; transform: translateY(-1px); }
+  .card[data-slot="1"] { box-shadow: inset 3px 0 0 var(--s1); }
+  .card[data-slot="2"] { box-shadow: inset 3px 0 0 var(--s2); }
+  .card.human { border: 2px solid var(--human); background: color-mix(in srgb, var(--human-bg) 45%, var(--panel)); }
+  .card .id { color: var(--muted); }
+  .card .title { font-weight: 600; margin: 2px 0 6px; line-height: 1.3; }
+  .card .note { font-size: 12px; margin-top: 6px; color: var(--muted); }
+  .card.human .note { color: var(--human); font-weight: 500; }
+  .card .blocked { font-size: 12px; margin-top: 6px; color: var(--chg); }
+  .rounds { display: flex; flex-direction: column; gap: 4px; }
+  .round { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .round .r { color: var(--muted); width: 20px; font-size: 10px; }
+  .chip { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--pend); color: var(--pend); }
+  .chip.PASS { background: var(--pass-bg); color: var(--pass); border-color: transparent; }
+  .chip.CHANGES { background: var(--chg-bg); color: var(--chg); border-color: transparent; }
+  .chip.pending { border-style: dashed; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .4; } }
+  @media (prefers-reduced-motion: reduce) { .chip.pending { animation: none; } .card { transition: none; } }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-top: 6px; }
+  .badge.APPROVE, .badge.PASS { background: var(--pass-bg); color: var(--pass); }
+  .badge.ESCALATE, .badge.CHANGES { background: var(--human-bg); color: var(--human); }
+  .empty { color: var(--muted); font-size: 12px; padding: 8px; text-align: center; }
+
+  /* drawer */
+  .drawer { position: fixed; inset: 0 0 0 auto; width: min(760px, 100%); background: var(--panel);
+    border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgb(0 0 0 / .12); display: none; grid-template-rows: auto auto 1fr; }
+  .drawer.open { display: grid; }
+  .drawer .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .drawer .files { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .btn { font: 12px ui-monospace, monospace; background: none; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+  .btn.on { border-color: var(--accent); color: var(--accent); }
+  .doc { overflow: auto; padding: 8px 20px 40px; }
+  .doc h1 { font-size: 18px; } .doc h2 { font-size: 15px; margin-top: 20px; } .doc h3 { font-size: 14px; }
+  .doc code { background: var(--well); padding: 1px 4px; border-radius: 4px; }
+  .doc pre { background: var(--well); border: 1px solid var(--line); padding: 10px; border-radius: 6px; overflow: auto; }
+  .doc pre code { background: none; padding: 0; }
+  .doc table { border-collapse: collapse; font-size: 13px; }
+  .doc td, .doc th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
+  .doc .verdict { font-size: 13px; padding: 3px 10px; }
+  @media (max-width: 640px) { .board { grid-template-columns: repeat(7, 78vw); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Software factory</h1>
+  <span id="alerts"></span>
+  <span class="meta" id="meta">cargando board.json…</span>
+</header>
+
+<h2 class="section">Slots de ejecución</h2>
+<section class="slots" id="slots"></section>
+
+<h2 class="section">Pipeline</h2>
+<main class="board" id="board"></main>
+
+<aside class="drawer" id="drawer" aria-label="Archivos del job">
+  <div class="top"><strong id="d-title" class="mono"></strong><button class="btn" id="d-close" aria-label="Cerrar">esc</button></div>
+  <div class="files" id="d-files"></div>
+  <article class="doc" id="d-doc"></article>
+</aside>
+
+<script>
+const STAGES = [
+  ["spec", "Spec"], ["queued-blocked", "En cola / bloqueado"], ["building", "Building"], ["review", "Review"],
+  ["approving", "Approving"], ["needs-human", "Needs human"], ["done", "Done"],
+];
+const ORDER = ["security", "ux", "ui", "code", "human"];
+const LABEL = { security: "sec", ux: "ux", ui: "ui", code: "code", human: "vos" };
+const SLOT_COLOR = { 1: "var(--s1)", 2: "var(--s2)" };
+const DEMO = new URLSearchParams(location.search).has("demo");
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let last = "", board = { jobs: [] }, openId = null, current = null;
+
+// ---------- datos ----------
+async function poll() {
+  try {
+    const text = DEMO ? JSON.stringify(demoBoard()) : await (await fetch("board.json", { cache: "no-store" })).text();
+    if (text !== last) { last = text; board = JSON.parse(text); render(); }
+    $("meta").textContent = (DEMO ? "datos demo · " : "") +
+      (board.updated ? "actualizado " + new Date(board.updated).toLocaleTimeString("es-AR") : "sin jobs todavía — corré /factory next");
+  } catch { $("meta").textContent = "no puedo leer board.json — serví esta carpeta con python -m http.server"; }
+}
+const jobById = (id) => (board.jobs || []).find((j) => j.id === id);
+function roundsOf(job) {
+  const rows = [...(job.past || [])];
+  if (job.reviews && Object.keys(job.reviews).length) rows.push(job.reviews);
+  return rows;
+}
+
+// ---------- render ----------
+function chips(reviews) {
+  return ORDER.filter((k) => k in reviews)
+    .map((k) => `<span class="chip ${esc(reviews[k])}" title="${k}: ${esc(reviews[k])}">${LABEL[k]}</span>`).join("");
+}
+function scopeList(scope) {
+  return `<div class="scope">${(scope || []).map((s) => `<code>${esc(s)}</code>`).join("") || `<span class="meta">sin scope</span>`}</div>`;
+}
+function slotCard(s) {
+  const job = s.job && jobById(s.job);
+  const c = SLOT_COLOR[s.slot] || "var(--muted)";
+  if (!job) return `<div class="slot free" style="--c:${c}"><span class="label">Slot ${s.slot}</span><span>libre · :${esc(s.port)}</span></div>`;
+  return `<div class="slot" style="--c:${c}">
+    <div class="head"><span class="label">Slot ${s.slot} · :${esc(s.port)}</span><span class="meta">${esc(job.stage)}${job.round ? " · R" + job.round : ""}</span></div>
+    <button class="card" style="padding:0;border:0;box-shadow:none" data-id="${esc(job.id)}"><div class="title">${esc(job.title || job.id)}</div></button>
+    <dl><dt>rama</dt><dd class="mono">${esc(job.branch)}</dd><dt>worktree</dt><dd class="mono">${esc(job.worktree)}</dd></dl>
+    <div class="meta">archivos bloqueados</div>${scopeList(job.scope)}
+  </div>`;
+}
+function card(job) {
+  const rows = roundsOf(job).map((r, i) => `<div class="round"><span class="r mono">R${i + 1}</span>${chips(r)}</div>`).join("");
+  const blocked = job.stage === "queued-blocked" && (job.blocked_by || []).length
+    ? `<div class="blocked">⏸ ${job.blocked_by.map((b) => b === "slot" ? "esperando slot libre" : b.startsWith("dep:") ? "depende de " + esc(b.slice(4)) : "choca con " + esc(b)).join(" · ")}</div>` : "";
+  return `<button class="card ${job.stage === "needs-human" ? "human" : ""}" data-id="${esc(job.id)}" ${job.slot ? `data-slot="${job.slot}"` : ""}>
+    <div class="id mono">${esc(job.id)}${job.slot ? ` · slot ${job.slot}` : ""}</div>
+    <div class="title">${esc(job.title || job.id)}</div>
+    ${rows ? `<div class="rounds">${rows}</div>` : ""}
+    ${job.decision ? `<span class="badge ${esc(job.decision)}">${esc(job.decision)}</span>` : ""}
+    ${blocked}${job.note ? `<div class="note">${esc(job.note)}</div>` : ""}
+  </button>`;
+}
+function render() {
+  const jobs = board.jobs || [];
+  const slots = board.active_slots || [{ slot: 1, job: null, port: 3001 }, { slot: 2, job: null, port: 3002 }];
+  $("slots").innerHTML = slots.map(slotCard).join("");
+  $("board").innerHTML = STAGES.map(([key, name]) => {
+    const here = jobs.filter((j) => j.stage === key);
+    return `<section class="col"><h3>${name}<span>${here.length || ""}</span></h3>
+      <div class="stack">${here.map(card).join("") || `<div class="empty">—</div>`}</div></section>`;
+  }).join("");
+  const n = jobs.filter((j) => j.stage === "needs-human").length;
+  $("alerts").innerHTML = (n ? `<span class="pill human">${n} ${n > 1 ? "necesitan" : "necesita"} un humano</span> ` : "") +
+    (board.merge_lock ? `<span class="pill lock">mergeando ${esc(board.merge_lock)}</span>` : "");
+  document.querySelectorAll("[data-id]").forEach((el) => el.onclick = () => openJob(el.dataset.id));
+  if (openId) refreshFiles();
+}
+
+// ---------- drawer ----------
+function filesOf(job) {
+  const f = [];
+  if (job.stage !== "spec") f.push("spec.md");
+  if (job.round > 0 || ["review", "approving", "needs-human", "done"].includes(job.stage)) f.push("build.md");
+  roundsOf(job).forEach((r, i) => ORDER.forEach((k) => {
+    if (r[k] && r[k] !== "pending") f.push(`round-${i + 1}/review-${k}.md`);
+  }));
+  if (job.decision) f.push("decision.md");
+  return f;
+}
+function openJob(id) { openId = id; current = null; $("drawer").classList.add("open"); refreshFiles(); }
+function refreshFiles() {
+  const job = jobById(openId);
+  if (!job) return;
+  $("d-title").textContent = `${job.id} · ${job.stage}`;
+  const files = filesOf(job);
+  $("d-files").innerHTML = files.map((f) => `<button class="btn ${f === current ? "on" : ""}" data-f="${esc(f)}">${esc(f)}</button>`).join("")
+    || `<span class="meta">todavía no hay archivos</span>`;
+  $("d-files").querySelectorAll("button").forEach((b) => b.onclick = () => show(b.dataset.f));
+  if (!current && files.length) show(files[files.length - 1]);
+}
+async function show(f) {
+  current = f; refreshFiles();
+  if (DEMO) { $("d-doc").innerHTML = md(`# ${f}\n\nModo demo: no hay archivos reales para leer.`); return; }
+  try {
+    const r = await fetch(`jobs/${encodeURIComponent(openId)}/${f}`, { cache: "no-store" });
+    $("d-doc").innerHTML = r.ok ? md(await r.text()) : `<p class="meta">${esc(f)} todavía no se escribió.</p>`;
+  } catch { $("d-doc").innerHTML = `<p class="meta">no pude cargar ${esc(f)}</p>`; }
+}
+function closeDrawer() { openId = null; $("drawer").classList.remove("open"); }
+$("d-close").onclick = closeDrawer;
+addEventListener("keydown", (e) => e.key === "Escape" && closeDrawer());
+
+// ---------- markdown mínimo (todo se escapa antes) ----------
+function inline(s) {
+  return s.replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\.{0,2}\/)[^)\s]*)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function md(src) {
+  const lines = src.replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/);
+  let out = "", i = 0;
+  const first = lines.find((l) => l.trim());
+  const m = first && first.match(/^(?:VERDICT:\s*)?(PASS|CHANGES|APPROVE|ESCALATE)\b/);
+  if (m) { out += `<p><span class="badge verdict ${m[1]}">${esc(first.trim())}</span></p>`; i = lines.indexOf(first) + 1; }
+  while (i < lines.length) {
+    const l = lines[i];
+    if (l.startsWith("```")) {
+      const buf = []; i++;
+      while (i < lines.length && !lines[i].startsWith("```")) buf.push(esc(lines[i++]));
+      out += `<pre><code>${buf.join("\n")}</code></pre>`; i++; continue;
+    }
+    if (/^\|/.test(l)) {
+      const rows = [];
+      while (i < lines.length && /^\|/.test(lines[i])) rows.push(lines[i++]);
+      out += "<table>" + rows.filter((r) => !/^\|[\s|:-]+\|$/.test(r)).map((r, n) =>
+        "<tr>" + r.slice(1, -1).split("|").map((c) => `<${n ? "td" : "th"}>${inline(esc(c.trim()))}</${n ? "td" : "th"}>`).join("") + "</tr>").join("") + "</table>";
+      continue;
+    }
+    if (/^- /.test(l)) {
+      let items = "";
+      while (i < lines.length && /^- /.test(lines[i])) items += `<li>${inline(esc(lines[i++].slice(2)))}</li>`;
+      out += `<ul>${items}</ul>`; continue;
+    }
+    const h = l.match(/^(#{1,3}) (.*)/);
+    if (h) out += `<h${h[1].length}>${inline(esc(h[2]))}</h${h[1].length}>`;
+    else if (l.trim()) out += `<p>${inline(esc(l))}</p>`;
+    i++;
+  }
+  return out;
+}
+
+// ---------- demo (?demo) ----------
+function demoBoard() {
+  const P = "PASS", C = "CHANGES", W = "pending";
+  const job = (id, title, stage, extra = {}) => ({ id, title, stage, branch: `factory/${id}`, worktree: `.worktrees/${id}`, round: 0, ...extra });
+  return {
+    config: { max_concurrent_jobs: 2 }, merge_lock: null, updated: new Date().toISOString(),
+    active_slots: [{ slot: 1, job: "001-seed-and-auth", port: 3001 }, { slot: 2, job: "004-public-booking-page", port: 3002 }],
+    jobs: [
+      job("006-cash-register-and-commissions", "Cierre de caja y liquidaciones", "spec"),
+      job("005-digital-notebook-and-walkins", "Cuaderno digital y walk-ins", "queued-blocked",
+        { scope: ["src/app/(dashboard)/today/**", "src/server/actions/records.ts", "src/lib/auth.ts"], blocked_by: ["001-seed-and-auth"] }),
+      job("001-seed-and-auth", "Seed + login por roles y sesión multi-tenant", "review",
+        { slot: 1, round: 2, scope: ["prisma/seed.ts", "src/lib/auth.ts", "src/proxy.ts", "src/app/(auth)/**", "package.json", "pnpm-lock.yaml"],
+          past: [{ security: C, ux: P, ui: P, code: C }], reviews: { security: P, ux: P, ui: W, code: W } }),
+      job("004-public-booking-page", "Página pública /[slug] con reservas", "building",
+        { slot: 2, round: 0, scope: ["src/app/[slug]/**", "src/lib/slots.ts", "src/lib/slots.test.ts", "src/server/actions/booking.ts"] }),
+      job("003-services-and-bulk-pricing", "Servicios y precios masivos", "needs-human",
+        { round: 1, reviews: { security: P, ux: P, ui: P, code: P }, decision: "ESCALATE", note: "Agrega una dependencia nueva (decimal.js)",
+          scope: ["src/app/(dashboard)/services/**", "src/lib/pricing.ts", "package.json"] }),
+      job("002-barbershop-settings", "Configuración de la barbería", "done",
+        { round: 1, reviews: { security: P, ux: P, ui: P, code: P }, decision: "APPROVE" }),
+    ],
+  };
+}
+
+poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>
