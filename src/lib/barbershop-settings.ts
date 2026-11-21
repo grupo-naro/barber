@@ -166,34 +166,36 @@ function isAtMost100(value: string): boolean {
   return int === "100" && frac === "";
 }
 
-export const payoutSchema = z
-  .object({
-    userId: z.string().trim().min(1, "Usuario inválido").max(100),
-    payoutScheme: z.enum(PAYOUT_SCHEMES, { error: "Elegí un esquema de liquidación" }),
-    payoutValue: z.string().nullish(),
-  })
-  .transform((input, ctx) => {
-    if (input.payoutScheme === "NONE") {
-      return { userId: input.userId, payoutScheme: input.payoutScheme, payoutValue: "0" };
-    }
-    const value = normalizeDecimal(input.payoutValue ?? "");
-    if (value === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["payoutValue"],
-        message: "Ingresá un número mayor o igual a 0, con hasta 2 decimales",
-      });
-      return z.NEVER;
-    }
-    if (input.payoutScheme === "PERCENTAGE" && !isAtMost100(value)) {
-      ctx.addIssue({ code: "custom", path: ["payoutValue"], message: "El porcentaje tiene que estar entre 0 y 100" });
-      return z.NEVER;
-    }
-    return { userId: input.userId, payoutScheme: input.payoutScheme, payoutValue: value };
-  });
+/** Campos de liquidación (sin transformar). Los usa `updateBarberSchema` (`src/lib/barbers.ts`). */
+export const payoutFields = {
+  payoutScheme: z.enum(PAYOUT_SCHEMES, { error: "Elegí un esquema de liquidación" }),
+  payoutValue: z.string().nullish(),
+};
 
-export type PayoutInput = z.input<typeof payoutSchema>;
-export type PayoutData = z.output<typeof payoutSchema>;
+/**
+ * Reglas de la liquidación: NONE → "0"; si no, decimal canónico (y ≤ 100 para PERCENTAGE).
+ * Agrega el issue en `payoutValue` y devuelve `null` si no es válido.
+ */
+export function resolvePayoutValue(
+  input: { payoutScheme: PayoutSchemeValue; payoutValue?: string | null },
+  ctx: z.RefinementCtx,
+): string | null {
+  if (input.payoutScheme === "NONE") return "0";
+  const value = normalizeDecimal(input.payoutValue ?? "");
+  if (value === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["payoutValue"],
+      message: "Ingresá un número mayor o igual a 0, con hasta 2 decimales",
+    });
+    return null;
+  }
+  if (input.payoutScheme === "PERCENTAGE" && !isAtMost100(value)) {
+    ctx.addIssue({ code: "custom", path: ["payoutValue"], message: "El porcentaje tiene que estar entre 0 y 100" });
+    return null;
+  }
+  return value;
+}
 
 // ---------------------------------------------------------------------------
 // Estado común de las actions

@@ -1,11 +1,13 @@
 import { Suspense } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { CircleUser, LogOut } from "lucide-react";
 import { requireSession } from "@/lib/auth";
 import { logout } from "@/server/actions/auth";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { navItemsForRole } from "@/lib/dashboard-nav";
+import { cn } from "@/lib/utils";
 
 const roleLabel = { OWNER: "Dueño/a", BARBER: "Barbero/a" } as const;
 
@@ -21,12 +23,22 @@ async function SessionHeader() {
             <Badge variant="secondary">{roleLabel[session.role]}</Badge>
           </p>
         </div>
-        <form action={logout} className="shrink-0">
-          <Button type="submit" variant="outline" size="lg" className="h-11 min-w-11" aria-label="Cerrar sesión">
-            <LogOut />
-            <span className="max-sm:sr-only">Cerrar sesión</span>
-          </Button>
-        </form>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/dashboard/account"
+            aria-label="Mi cuenta"
+            className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "h-11 min-w-11")}
+          >
+            <CircleUser aria-hidden />
+            <span className="max-sm:sr-only">Mi cuenta</span>
+          </Link>
+          <form action={logout}>
+            <Button type="submit" variant="outline" size="lg" className="h-11 min-w-11" aria-label="Cerrar sesión">
+              <LogOut />
+              <span className="max-sm:sr-only">Cerrar sesión</span>
+            </Button>
+          </form>
+        </div>
       </header>
       {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
       <DashboardNav items={navItemsForRole(session.role)} />

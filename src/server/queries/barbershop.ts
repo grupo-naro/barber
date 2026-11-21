@@ -2,7 +2,7 @@
 // tiene que salir de la sesión del servidor (ver `src/lib/auth.ts`).
 import "server-only";
 import { db } from "@/lib/db";
-import type { DayHoursData, PayoutSchemeValue } from "@/lib/barbershop-settings";
+import type { DayHoursData } from "@/lib/barbershop-settings";
 
 export type SettingsProfile = {
   name: string;
@@ -13,21 +13,10 @@ export type SettingsProfile = {
   whatsapp: string | null;
 };
 
-export type SettingsUser = {
-  id: string;
-  name: string;
-  role: "OWNER" | "BARBER";
-  active: boolean;
-  payoutScheme: PayoutSchemeValue;
-  /** Decimal como string ("120000.00"): nunca float. */
-  payoutValue: string;
-};
-
 export type BarbershopSettings = {
   profile: SettingsProfile;
   /** Siempre 7 días, ordenados por weekday (0 = domingo). Los días sin fila salen como cerrados. */
   hours: DayHoursData[];
-  users: SettingsUser[];
 };
 
 export async function getBarbershopSettings(barbershopId: string): Promise<BarbershopSettings | null> {
@@ -42,10 +31,6 @@ export async function getBarbershopSettings(barbershopId: string): Promise<Barbe
       whatsapp: true,
       openingHours: {
         select: { weekday: true, closed: true, opensAt: true, closesAt: true },
-      },
-      users: {
-        orderBy: [{ active: "desc" }, { role: "asc" }, { name: "asc" }],
-        select: { id: true, name: true, role: true, active: true, payoutScheme: true, payoutValue: true },
       },
     },
   });
@@ -70,6 +55,5 @@ export async function getBarbershopSettings(barbershopId: string): Promise<Barbe
       whatsapp: shop.whatsapp,
     },
     hours,
-    users: shop.users.map((u) => ({ ...u, payoutValue: u.payoutValue.toFixed(2) })),
   };
 }

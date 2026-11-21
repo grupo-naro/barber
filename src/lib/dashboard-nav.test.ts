@@ -2,17 +2,25 @@ import { describe, expect, it } from "vitest";
 import { isNavItemActive, navItemsForRole } from "./dashboard-nav";
 
 describe("navItemsForRole", () => {
-  it("OWNER ve Hoy, Servicios, Caja y Configuración en ese orden", () => {
+  it("OWNER ve Hoy, Servicios, Caja, Barberos y Ajustes en ese orden", () => {
     expect(navItemsForRole("OWNER")).toEqual([
       { href: "/dashboard/today", label: "Hoy" },
       { href: "/dashboard/services", label: "Servicios" },
       { href: "/dashboard/cash", label: "Caja" },
-      { href: "/dashboard/settings", label: "Configuración" },
+      { href: "/dashboard/barbers", label: "Barberos" },
+      { href: "/dashboard/settings", label: "Ajustes" },
     ]);
   });
 
   it("BARBER ve solo Hoy", () => {
     expect(navItemsForRole("BARBER")).toEqual([{ href: "/dashboard/today", label: "Hoy" }]);
+    expect(navItemsForRole("BARBER").some((item) => item.href === "/dashboard/barbers")).toBe(false);
+  });
+});
+
+describe("labels de la barra inferior", () => {
+  it("son cortos: con 5 ítems a 360px quedan ~56px por label en text-xs", () => {
+    for (const item of navItemsForRole("OWNER")) expect(item.label.length, item.label).toBeLessThanOrEqual(9);
   });
 });
 
@@ -25,6 +33,7 @@ describe("isNavItemActive", () => {
     expect(activeLabels("/dashboard/today")).toEqual(["Hoy"]);
     expect(activeLabels("/dashboard/today/customers/abc")).toEqual(["Hoy"]);
     expect(activeLabels("/dashboard/services/abc")).toEqual(["Servicios"]);
+    expect(activeLabels("/dashboard/barbers/abc")).toEqual(["Barberos"]);
   });
 
   it("no activa por prefijo parcial ni en la home del panel", () => {

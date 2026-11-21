@@ -46,6 +46,8 @@ describe("slugs: validateSlug", () => {
     expect(isReservedSlug("dashboard")).toBe(true);
     expect(isReservedSlug("media")).toBe(true);
     expect(isReservedSlug("Media")).toBe(true);
+    expect(isReservedSlug("invitacion")).toBe(true);
+    expect(validateSlug("invitacion").ok).toBe(false);
     expect(isReservedSlug("barberia-demo")).toBe(false);
   });
 });

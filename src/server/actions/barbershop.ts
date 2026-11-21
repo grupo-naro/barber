@@ -1,21 +1,20 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
 import {
   firstFieldErrors,
   openingHoursErrors,
   openingHoursSchema,
-  payoutSchema,
   profileSchema,
   type ActionResult,
 } from "@/lib/barbershop-settings";
 import { barbershopBrandingTag } from "@/app/[slug]/data";
 
-// Mutaciones del panel de configuración. Orden fijo: Zod `safeParse` → sesión y rol OWNER
-// → query con el `barbershopId` de la SESIÓN (nunca de un campo del formulario).
+// Mutaciones del panel de configuración (la liquidación por barbero está en `actions/barbers.ts`).
+// Orden fijo: Zod `safeParse` → sesión y rol OWNER → query con el `barbershopId` de la SESIÓN
+// (nunca de un campo del formulario).
 
 const SETTINGS_PATH = "/dashboard/settings";
 const FORBIDDEN: ActionResult = { ok: false, error: "No tenés permiso para cambiar la configuración." };
@@ -86,30 +85,4 @@ export async function updateOpeningHours(_prev: ActionResult | undefined, formDa
 
   revalidatePath(SETTINGS_PATH);
   return { ok: true, message: "Horarios guardados." };
-}
-
-export async function updateBarberPayout(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
-  const parsed = payoutSchema.safeParse({
-    userId: text(formData, "userId") ?? "",
-    payoutScheme: text(formData, "payoutScheme"),
-    payoutValue: text(formData, "payoutValue"),
-  });
-  if (!parsed.success) return { ok: false, error: INVALID, fieldErrors: firstFieldErrors(parsed.error) };
-
-  const session = await ownerSession();
-  if (!session) return FORBIDDEN;
-
-  // El userId viene del cliente: el `where` incluye el barbershopId de la sesión, así que
-  // un id de otra barbería no matchea y no se toca nada.
-  const { count } = await db.user.updateMany({
-    where: { id: parsed.data.userId, barbershopId: session.barbershopId },
-    data: {
-      payoutScheme: parsed.data.payoutScheme,
-      payoutValue: new Prisma.Decimal(parsed.data.payoutValue),
-    },
-  });
-  if (count !== 1) return { ok: false, error: "No encontramos ese usuario en tu barbería." };
-
-  revalidatePath(SETTINGS_PATH);
-  return { ok: true, message: "Liquidación guardada." };
 }

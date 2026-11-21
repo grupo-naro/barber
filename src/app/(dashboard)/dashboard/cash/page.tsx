@@ -124,7 +124,15 @@ function BarbersCard({ day }: { day: CashDay }) {
         <CardDescription>
           {day.status === "closed"
             ? "Según el acuerdo vigente al momento del cierre."
-            : "Según el acuerdo vigente de cada barbero (Configuración → Liquidaciones)."}
+            : (
+                <>
+                  Según el acuerdo vigente de cada barbero (se edita en{" "}
+                  <Link href="/dashboard/barbers" className="underline underline-offset-4 hover:text-foreground">
+                    Barberos
+                  </Link>
+                  ).
+                </>
+              )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
