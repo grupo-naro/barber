@@ -85,7 +85,8 @@ export async function getLandingSettings(barbershopId: string): Promise<LandingS
 export type PublicOpeningHours = { weekday: number; opensAt: string | null; closesAt: string | null; closed: boolean };
 
 /**
- * Horarios semanales públicos de una barbería, por slug. Sin caché: `updateOpeningHours` no
+ * Horarios semanales públicos de una barbería, por slug: una fila por franja (horario cortado =
+ * 2 filas del mismo weekday), ordenadas por weekday y apertura. Sin caché: `updateOpeningHours` no
  * invalida el tag de branding, así que se lee por request (dentro de un `<Suspense>`).
  * `null` si el slug no existe o la barbería está suspendida.
  */
@@ -95,7 +96,7 @@ export async function getPublicOpeningHours(slug: string): Promise<PublicOpening
     select: {
       openingHours: {
         select: { weekday: true, opensAt: true, closesAt: true, closed: true },
-        orderBy: { weekday: "asc" },
+        orderBy: [{ weekday: "asc" }, { opensAt: "asc" }],
       },
     },
   });

@@ -112,7 +112,7 @@ model OpeningHours {
   closesAt     String?
   closed       Boolean    @default(false)
 
-  @@unique([barbershopId, weekday])
+  @@unique([barbershopId, weekday, opensAt])
 }
 
 /// Usuario del panel. Un OWNER también puede atender (tener turnos y cortes).

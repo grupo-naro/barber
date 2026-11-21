@@ -76,8 +76,11 @@ function rng(seed: number) {
 
 // ---------- datos ----------
 
-// weekday: 0 = domingo … 6 = sábado
-const OPENING_HOURS = [
+// weekday: 0 = domingo … 6 = sábado. Una fila por franja: el martes de la demo es horario
+// cortado (10–14 y 17–21). `otra-barberia` mantiene el martes corrido 10–20.
+type OpeningHoursSeed = { weekday: number; opensAt: string | null; closesAt: string | null; closed: boolean };
+
+const OPENING_HOURS: OpeningHoursSeed[] = [
   { weekday: 0, opensAt: null, closesAt: null, closed: true },
   { weekday: 1, opensAt: "10:00", closesAt: "20:00", closed: false },
   { weekday: 2, opensAt: "10:00", closesAt: "20:00", closed: false },
@@ -86,6 +89,24 @@ const OPENING_HOURS = [
   { weekday: 5, opensAt: "10:00", closesAt: "21:00", closed: false },
   { weekday: 6, opensAt: "09:00", closesAt: "18:00", closed: false },
 ];
+
+const DEMO_OPENING_HOURS: OpeningHoursSeed[] = [
+  ...OPENING_HOURS.filter((h) => h.weekday !== 2),
+  { weekday: 2, opensAt: "10:00", closesAt: "14:00", closed: false },
+  { weekday: 2, opensAt: "17:00", closesAt: "21:00", closed: false },
+].sort((a, b) => a.weekday - b.weekday);
+
+/** Horas en punto de un día con turno de 1 h dentro de alguna franja abierta (unión ordenada). */
+function bookableHours(hours: readonly OpeningHoursSeed[], weekday: number): number[] {
+  const out = new Set<number>();
+  for (const h of hours) {
+    if (h.weekday !== weekday || h.closed || !h.opensAt || !h.closesAt) continue;
+    const opens = toMinutes(h.opensAt);
+    const closes = toMinutes(h.closesAt);
+    for (let hour = Math.ceil(opens / 60); hour * 60 + 60 <= closes; hour++) out.add(hour);
+  }
+  return [...out].sort((a, b) => a - b);
+}
 
 const SERVICES = [
   { name: "Corte de pelo", description: "Corte a tijera o máquina, lavado y peinado.", price: "15000", durationMinutes: 30 },
@@ -155,7 +176,7 @@ async function seedDemo(now: Date) {
       phone: "+54 11 4832-5566",
       whatsapp: "+5491155443322",
       timezone: TIMEZONE,
-      openingHours: { create: OPENING_HOURS },
+      openingHours: { create: DEMO_OPENING_HOURS },
       services: {
         create: SERVICES.map((s, i) => ({ ...s, price: new Prisma.Decimal(s.price), sortOrder: i })),
       },
@@ -222,13 +243,10 @@ async function seedDemo(now: Date) {
   const appointments: Prisma.AppointmentCreateManyInput[] = [];
   for (const date of week) {
     const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
-    const hours = OPENING_HOURS[weekday];
-    if (hours.closed || !hours.opensAt || !hours.closesAt) continue; // domingo cerrado: sin turnos
-    const opens = toMinutes(hours.opensAt);
-    const closes = toMinutes(hours.closesAt);
+    // Domingo cerrado: sin turnos. Martes cortado: ninguno en el hueco de 14 a 17.
+    const dayHours = bookableHours(DEMO_OPENING_HOURS, weekday);
 
-    let hourIndex = 0;
-    for (let h = Math.ceil(opens / 60); h * 60 + 60 <= closes; h++, hourIndex++) {
+    for (const [hourIndex, h] of dayHours.entries()) {
       // La segunda hora de cada día siempre tiene 2–3 turnos (para ver turnos compartiendo la hora).
       const count = hourIndex === 1 ? 2 + Math.floor(random() * 2) : perHour();
       const startsAt = zonedToUtc(date, h * 60, TIMEZONE);

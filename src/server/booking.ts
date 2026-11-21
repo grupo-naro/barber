@@ -67,7 +67,8 @@ export async function createPublicBooking(
     return { ok: false, error: "Elegí un día dentro de las próximas dos semanas." };
   }
 
-  // Hora en punto, dentro del horario del día y futura.
+  // Hora en punto, dentro de alguna franja del día (no en el hueco de un horario cortado) y futura.
+  // Misma función que la grilla pública (`getAvailableSlots`): no pueden divergir.
   const hours = await getDayHours(db, shop.id, date);
   const slots = computeHourlySlots({ hours, date, timeZone: shop.timezone, now });
   if (!slots.some((slot) => slot.getTime() === startsAt.getTime())) {

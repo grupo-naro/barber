@@ -5,12 +5,21 @@ import { DEFAULT_TIMEZONE } from "@/lib/time";
 /** Duración fija de cada turno: la grilla pública es por hora en punto. */
 export const SLOT_MINUTES = 60;
 
-/** Horario de un día de semana ("HH:mm" locales). `null`/`undefined` = sin horario cargado. */
-export type DayHours = {
+/** Una fila de horario (franja) de un día de semana, "HH:mm" locales. */
+export type HoursRow = {
   opensAt: string | null;
   closesAt: string | null;
   closed: boolean;
-} | null | undefined;
+};
+
+/**
+ * Franjas de un día de semana (una fila por franja, hasta 2: ej. 10–14 y 17–21).
+ * `null`/`undefined`/`[]` = sin horario cargado (cerrado).
+ */
+export type DayHours = readonly HoursRow[] | null | undefined;
+
+/** Franja válida en minutos desde las 00:00 locales. */
+export type MinuteRange = { open: number; close: number };
 
 export type HourlySlotsInput = {
   hours: DayHours;
@@ -40,6 +49,28 @@ export function isValidTime(time: string): boolean {
 function parseTime(time: string): number | null {
   const m = TIME_RE.exec(time);
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/**
+ * Franjas válidas de un día, ordenadas por apertura. Válida = `closed: false` con apertura y
+ * cierre "HH:mm" y apertura < cierre; las filas `closed`, incompletas o inválidas se ignoran.
+ */
+export function validRanges(rows: DayHours): MinuteRange[] {
+  if (!rows) return [];
+  const ranges: MinuteRange[] = [];
+  for (const row of rows) {
+    if (row.closed || !row.opensAt || !row.closesAt) continue;
+    const open = parseTime(row.opensAt);
+    const close = parseTime(row.closesAt);
+    if (open === null || close === null || close <= open) continue;
+    ranges.push({ open, close });
+  }
+  return ranges.sort((a, b) => a.open - b.open || a.close - b.close);
+}
+
+/** `true` si el día tiene al menos una franja válida. */
+export function isOpenDay(rows: DayHours): boolean {
+  return validRanges(rows).length > 0;
 }
 
 /** Día de semana de una fecha de calendario (0 = domingo … 6 = sábado). */
@@ -96,24 +127,27 @@ export function zonedTimeToUtc(date: string, time: string, timeZone: string = DE
 }
 
 /**
- * Horarios por hora en punto (instantes UTC, ordenados) de un día de negocio.
- * Se ofrece `H:00` local si `[H:00, H:00 + 60 min)` entra completo en el horario y
- * empieza estrictamente después de `now`. No depende de turnos existentes ni de la
- * duración del servicio: varios turnos pueden compartir la misma hora.
+ * Horarios por hora en punto (instantes UTC, ordenados y sin duplicados) de un día de negocio.
+ * Se ofrece `H:00` local si `[H:00, H:00 + 60 min)` entra completo en alguna franja válida del
+ * día y empieza estrictamente después de `now`. Con horario cortado (ej. 10–14 y 17–21) las
+ * horas del hueco no se ofrecen. No depende de turnos existentes ni de la duración del
+ * servicio: varios turnos pueden compartir la misma hora.
  */
 export function computeHourlySlots(input: HourlySlotsInput): Date[] {
   const { hours, date, now } = input;
   const timeZone = input.timeZone ?? DEFAULT_TIMEZONE;
 
-  if (!hours || hours.closed || !hours.opensAt || !hours.closesAt) return [];
   if (!isValidDate(date)) return [];
+  const ranges = validRanges(hours);
+  if (ranges.length === 0) return [];
 
-  const openMin = parseTime(hours.opensAt);
-  const closeMin = parseTime(hours.closesAt);
-  if (openMin === null || closeMin === null || closeMin <= openMin) return [];
+  const startHours = new Set<number>();
+  for (const { open, close } of ranges) {
+    for (let h = Math.ceil(open / 60); h * 60 + SLOT_MINUTES <= close; h++) startHours.add(h);
+  }
 
   const slots: Date[] = [];
-  for (let h = Math.ceil(openMin / 60); h * 60 + SLOT_MINUTES <= closeMin; h++) {
+  for (const h of [...startHours].sort((a, b) => a - b)) {
     const slot = zonedTimeToUtc(date, `${String(h).padStart(2, "0")}:00`, timeZone);
     if (slot.getTime() > now.getTime()) slots.push(slot);
   }
