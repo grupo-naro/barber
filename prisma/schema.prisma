@@ -31,6 +31,25 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+/// Estado de la barbería en la plataforma. SUSPENDED corta el panel, la landing y las reservas (reversible).
+enum BarbershopStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// Plan comercial. Solo informativo: el vencimiento muestra un banner, no bloquea funciones.
+enum Plan {
+  FREE
+  BASIC
+  PRO
+}
+
+/// INVITE: alta (el usuario todavía no tiene contraseña). RESET: nuevo acceso del dueño generado por el admin.
+enum InvitationKind {
+  INVITE
+  RESET
+}
+
 enum PaymentMethod {
   CASH
   TRANSFER
@@ -39,8 +58,8 @@ enum PaymentMethod {
 }
 
 model Barbershop {
-  id            String   @id @default(cuid())
-  slug          String   @unique
+  id            String           @id @default(cuid())
+  slug          String           @unique
   name          String
   logoUrl       String?
   description   String?
@@ -52,9 +71,12 @@ model Barbershop {
   /// Handle de Instagram normalizado, sin `@`.
   instagram     String?
   googleMapsUrl String?
-  timezone      String   @default("America/Argentina/Buenos_Aires")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  timezone      String           @default("America/Argentina/Buenos_Aires")
+  status        BarbershopStatus @default(ACTIVE)
+  plan          Plan             @default(FREE)
+  planExpiresAt DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   openingHours   OpeningHours[]
   users          User[]
@@ -105,6 +127,7 @@ model User {
   active       Boolean      @default(true)
   payoutScheme PayoutScheme @default(NONE)
   payoutValue  Decimal      @default(0) @db.Decimal(12, 2)
+  lastLoginAt  DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -120,17 +143,28 @@ model User {
 /// Invitación de un solo uso para que un barbero elija su contraseña. Solo se guarda el sha256 del token
 /// (el token crudo viaja una única vez en el link). `barbershopId` siempre coincide con el del usuario.
 model Invitation {
-  id           String     @id @default(cuid())
+  id           String         @id @default(cuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   barbershopId String
-  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  tokenHash    String     @unique
+  barbershop   Barbershop     @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  tokenHash    String         @unique
+  kind         InvitationKind @default(INVITE)
   expiresAt    DateTime
   usedAt       DateTime?
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime       @default(now())
 
   @@index([userId])
+}
+
+/// Administrador de la plataforma (SaaS). Sin relación con barberías ni usuarios: se crea solo por script.
+model PlatformAdmin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
 }
 
 model Service {
