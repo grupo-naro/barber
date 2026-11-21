@@ -64,6 +64,7 @@ model Barbershop {
   serviceRecords ServiceRecord[]
   cashCloses     CashRegisterClose[]
   galleryImages  GalleryImage[]
+  invitations    Invitation[]
 }
 
 /// Foto de la galería pública de la barbería. El archivo vive en el storage de medios bajo `storageKey`.
@@ -111,8 +112,25 @@ model User {
   serviceRecords ServiceRecord[]
   payouts        BarberPayout[]
   closesDone     CashRegisterClose[] @relation("ClosedBy")
+  invitations    Invitation[]
 
   @@index([barbershopId])
+}
+
+/// Invitación de un solo uso para que un barbero elija su contraseña. Solo se guarda el sha256 del token
+/// (el token crudo viaja una única vez en el link). `barbershopId` siempre coincide con el del usuario.
+model Invitation {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershopId String
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  tokenHash    String     @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([userId])
 }
 
 model Service {
