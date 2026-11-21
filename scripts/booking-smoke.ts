@@ -44,6 +44,12 @@ async function seed() {
   await wipe(SLUG);
   await wipe(OTHER_SLUG);
 
+  const today = businessDate(new Date(), TZ);
+  const day1 = nextWorkingDay(today); // próximo día hábil: reservas del smoke + turnos fijos
+  // Día hábil siguiente a day1: su weekday tiene horario cortado 10–14 y 17–21 (una fila por franja).
+  const splitDay = nextWorkingDay(day1);
+  const splitWeekday = weekdayOf(splitDay);
+
   const shop = await db.barbershop.create({
     data: {
       slug: SLUG,
@@ -56,9 +62,14 @@ async function seed() {
       openingHours: {
         create: Array.from({ length: 7 }, (_, weekday) =>
           weekday === 0
-            ? { weekday, closed: true }
-            : { weekday, opensAt: "09:00", closesAt: "19:00", closed: false },
-        ),
+            ? [{ weekday, closed: true }]
+            : weekday === splitWeekday
+              ? [
+                  { weekday, opensAt: "17:00", closesAt: "21:00", closed: false },
+                  { weekday, opensAt: "10:00", closesAt: "14:00", closed: false },
+                ]
+              : [{ weekday, opensAt: "09:00", closesAt: "19:00", closed: false }],
+        ).flat(),
       },
       users: {
         create: [
@@ -93,9 +104,6 @@ async function seed() {
   const byName = (name: string) => shop.users.find((u) => u.name === name)!;
   const service = (name: string) => shop.services.find((s) => s.name === name)!;
 
-  const today = businessDate(new Date(), TZ);
-  const day1 = nextWorkingDay(today); // próximo día hábil: reservas del smoke + turnos fijos
-
   const fixtureCustomer = await db.customer.create({
     data: { barbershopId: shop.id, name: "Cliente Fixture", phone: "1199990000", notes: "2 al costado, tijera arriba" },
   });
@@ -116,12 +124,12 @@ async function seed() {
     });
   }
 
-  return { shop, other, byName, service, today, day1, fixtureCustomer };
+  return { shop, other, byName, service, today, day1, splitDay, fixtureCustomer };
 }
 
 async function main() {
   console.log("Cargando fixture…");
-  const { shop, other, byName, service, today, day1, fixtureCustomer } = await seed();
+  const { shop, other, byName, service, today, day1, splitDay, fixtureCustomer } = await seed();
   const at = (date: string, time: string) => zonedTimeToUtc(date, time, TZ).toISOString();
   const countAppointments = () => db.appointment.count({ where: { barbershopId: { in: [shop.id, other.id] } } });
   const corte = service("Corte");
@@ -317,6 +325,43 @@ async function main() {
       const appt = await db.appointment.findUniqueOrThrow({ where: { id: result.appointmentId } });
       check(appt.barberId === null, `barberId ${label} en el input → el turno queda con barberId = null`);
     }
+  }
+
+  // (f) Horario cortado (10–14 y 17–21): la grilla y la reserva usan las dos franjas, nunca el hueco.
+  console.log(`Verificando horario cortado (día ${splitDay})…`);
+  const split = await getAvailableSlots(SLUG, { serviceId: corte.id, date: splitDay, now: new Date() });
+  const splitTimes = (split?.slots ?? []).map((s) => localTime(s, TZ));
+  check(split?.open === true, "día cortado: está abierto");
+  check(
+    splitTimes.join(",") === "10:00,11:00,12:00,13:00,17:00,18:00,19:00,20:00",
+    `día cortado: sólo las horas de las dos franjas (hay ${splitTimes.join(",")})`,
+  );
+  const splitNoon = await getAvailableSlots(SLUG, {
+    serviceId: corte.id,
+    date: splitDay,
+    now: new Date(at(splitDay, "15:00")),
+  });
+  check(
+    (splitNoon?.slots ?? []).map((s) => localTime(s, TZ)).join(",") === "17:00,18:00,19:00,20:00",
+    "día cortado con now = 15:00 (en el hueco): quedan 17:00…20:00",
+  );
+  const beforeSplit = await countAppointments();
+  for (const time of ["14:00", "15:00", "16:00", "21:00", "09:00"]) {
+    const result = await createPublicBooking(SLUG, {
+      name: "Hueco Del Mediodía",
+      phone: "1177777777",
+      serviceId: corte.id,
+      startsAt: at(splitDay, time),
+    });
+    check(
+      !result.ok && result.error === "Ese horario no está disponible. Elegí otro, por favor.",
+      `día cortado: reservar a las ${time} (fuera de las franjas) → SLOT_UNAVAILABLE`,
+    );
+  }
+  check((await countAppointments()) === beforeSplit, "día cortado: los rechazos del hueco no crearon turnos");
+  for (const [time, phone] of [["13:00", "1177777701"], ["17:00", "1177777702"], ["20:00", "1177777703"]] as const) {
+    const result = await createPublicBooking(SLUG, { name: "Turno Cortado", phone, serviceId: corte.id, startsAt: at(splitDay, time) });
+    check(result.ok, `día cortado: reservar a las ${time} (dentro de una franja) → ok`);
   }
 
   // Asignación al completar (turnos de HOY creados por DB, `now` controlado al mediodía).
