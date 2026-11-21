@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import {
+  isSessionRevoked,
   SESSION_COOKIE,
   SESSION_DURATION_MS,
   sessionCookieOptions,
@@ -31,17 +32,35 @@ export type Session = {
   };
 };
 
-/** Destino de `requireSession` cuando la barbería está suspendida (el proxy no lo rebota a `/dashboard`). */
+// Destinos de `requireSession` cuando el JWT es válido pero la DB rechaza la sesión. Son rutas CONSTANTES
+// (nunca se arman con input del usuario) y el proxy no las rebota a `/dashboard` (ver `isLoginNotice`).
+/** La barbería de la sesión está suspendida. */
 export const SUSPENDED_LOGIN_PATH = "/login?suspended=1";
+/** El usuario no existe, está inactivo o ya no pertenece a la barbería del token. */
+export const INACTIVE_LOGIN_PATH = "/login?inactive=1";
+/** La sesión es anterior al último cambio de contraseña. */
+export const EXPIRED_LOGIN_PATH = "/login?expired=1";
 
-type SessionLookup = { session: Session | null; suspended: boolean };
+/** Avisos de `/login` (los muestra `src/app/(auth)/login/page.tsx`). */
+export const INACTIVE_MESSAGE = "Tu acceso fue desactivado. Hablá con el dueño de la barbería.";
+export const EXPIRED_MESSAGE = "Tu sesión se cerró porque cambió la contraseña. Ingresá de nuevo.";
 
-/** Lectura memoizada por request: la sesión y si se rechazó por barbería suspendida. */
+/** Motivo por el que se rechazó una sesión con JWT válido (`null` = sin token, token inválido o sesión OK). */
+export type SessionRejection = "suspended" | "inactive" | "expired" | null;
+
+type SessionLookup = { session: Session | null; reason: SessionRejection };
+
+const REJECTION_PATH: Record<Exclude<SessionRejection, null>, string> = {
+  suspended: SUSPENDED_LOGIN_PATH,
+  inactive: INACTIVE_LOGIN_PATH,
+  expired: EXPIRED_LOGIN_PATH,
+};
+
+/** Lectura memoizada por request: la sesión o el motivo del rechazo. */
 const lookupSession = cache(async (): Promise<SessionLookup> => {
-  const none = { session: null, suspended: false };
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const payload = await verifySession(token);
-  if (!payload) return none;
+  if (!payload) return { session: null, reason: null };
 
   const user = await db.user.findUnique({
     where: { id: payload.userId },
@@ -52,14 +71,19 @@ const lookupSession = cache(async (): Promise<SessionLookup> => {
       role: true,
       active: true,
       barbershopId: true,
+      passwordChangedAt: true,
       barbershop: {
         select: { id: true, name: true, slug: true, timezone: true, status: true, plan: true, planExpiresAt: true },
       },
     },
   });
-  if (!user || !user.active || user.barbershopId !== payload.barbershopId) return none;
+  // Usuario borrado, desactivado o de otro tenant: el JWT sigue siendo válido para el proxy, así que se manda a
+  // `/login?inactive=1` (que el proxy deja pasar) en vez de `/login` (que rebotaría a `/dashboard` → loop).
+  if (!user || !user.active || user.barbershopId !== payload.barbershopId) return { session: null, reason: "inactive" };
   // Barbería suspendida: las sesiones ya emitidas dejan de servir (vuelven a servir al reactivarla).
-  if (user.barbershop.status !== "ACTIVE") return { session: null, suspended: true };
+  if (user.barbershop.status !== "ACTIVE") return { session: null, reason: "suspended" };
+  // Cambio de contraseña posterior a la emisión del token (a precisión de segundo): se cierran los otros dispositivos.
+  if (isSessionRevoked(payload.issuedAt, user.passwordChangedAt)) return { session: null, reason: "expired" };
 
   const session: Session = {
     userId: user.id,
@@ -69,22 +93,26 @@ const lookupSession = cache(async (): Promise<SessionLookup> => {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
     barbershop: user.barbershop,
   };
-  return { session, suspended: false };
+  return { session, reason: null };
 });
 
 /**
  * Lee la cookie, verifica el JWT y re-lee el usuario en la DB. Devuelve `null` si el token es inválido,
- * el usuario no existe, está inactivo, ya no pertenece al `barbershopId` del token o su barbería está
- * suspendida. Memoizado por request. Llamala dentro de un `<Suspense>` (lee cookies).
+ * el usuario no existe, está inactivo, ya no pertenece al `barbershopId` del token, su barbería está
+ * suspendida o la sesión es anterior al último cambio de contraseña. Memoizado por request.
+ * Llamala dentro de un `<Suspense>` (lee cookies). La cookie rechazada se ignora (no se borra al renderizar).
  */
 export async function getSession(): Promise<Session | null> {
   return (await lookupSession()).session;
 }
 
-/** Sesión obligatoria: sin sesión válida redirige a `/login` (o a `/login?suspended=1` si está suspendida). */
+/**
+ * Sesión obligatoria. Sin token o con token inválido → `/login`; con JWT válido pero rechazado por la DB →
+ * la ruta de aviso constante del motivo (`?suspended=1`, `?inactive=1`, `?expired=1`), que el proxy no rebota.
+ */
 export async function requireSession(): Promise<Session> {
-  const { session, suspended } = await lookupSession();
-  if (suspended) redirect(SUSPENDED_LOGIN_PATH);
+  const { session, reason } = await lookupSession();
+  if (reason) redirect(REJECTION_PATH[reason]);
   if (!session) redirect("/login");
   return session;
 }

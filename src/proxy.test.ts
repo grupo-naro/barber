@@ -9,6 +9,7 @@ import {
   decideRoute,
   isAdminPath,
   isPrivatePath,
+  isLoginNotice,
   isSuspendedNotice,
   publicSlugFromPath,
   safeNextPath,
@@ -217,5 +218,49 @@ describe("proxy: barbería suspendida (sin loop /login ↔ /dashboard)", () => {
     expect(decideRoute("/dashboard", "", true)).toEqual({ action: "next" });
     // 2. getSession ve SUSPENDED → requireSession redirige a /login?suspended=1, que el proxy no rebota.
     expect(decideRoute("/login", "?suspended=1", true)).toEqual({ action: "next" });
+  });
+});
+
+describe("proxy: avisos de /login (inactivo, sesión vencida por cambio de contraseña)", () => {
+  const notices = ["?suspended=1", "?inactive=1", "?expired=1"];
+
+  it("los tres avisos con JWT válido NO redirigen a /dashboard", () => {
+    for (const search of notices) {
+      expect(isLoginNotice(search)).toBe(true);
+      expect(decideRoute("/login", search, true)).toEqual({ action: "next" });
+      expect(decideRoute("/login", search, false)).toEqual({ action: "next" });
+    }
+  });
+
+  it("valores que no son exactamente \"1\" no cuentan como aviso: con sesión siguen yendo a /dashboard", () => {
+    const invalid = ["", "?inactive=0", "?expired=true", "?expired=", "?expired", "?inactive=11", "?suspended=yes", "?other=1"];
+    for (const search of invalid) {
+      expect(isLoginNotice(search)).toBe(false);
+      expect(decideRoute("/login", search, true)).toEqual({ action: "redirect", location: "/dashboard" });
+    }
+  });
+
+  it("recorrido anti-loop: /dashboard (JWT válido) → requireSession → /login?inactive=1 | ?expired=1 → pasa", () => {
+    for (const notice of ["?inactive=1", "?expired=1"]) {
+      // 1. El proxy deja pasar /dashboard (JWT válido; la DB la mira lookupSession).
+      expect(decideRoute("/dashboard", "", true)).toEqual({ action: "next" });
+      expect(decideRoute("/dashboard/today", "", true)).toEqual({ action: "next" });
+      // 2. lookupSession rechaza (inactive / expired) → requireSession redirige al aviso, que el proxy no rebota.
+      expect(decideRoute("/login", notice, true)).toEqual({ action: "next" });
+    }
+  });
+
+  it("/login?expired=1&next=//evil.com no produce ningún location externo", () => {
+    for (const valid of [true, false]) {
+      const decision = decideRoute("/login", "?expired=1&next=//evil.com", valid);
+      expect(decision).toEqual({ action: "next" });
+    }
+    // El `next` que llega junto al aviso sigue pasando por safeNextPath al loguearse.
+    const next = new URLSearchParams("?expired=1&next=//evil.com").get("next");
+    expect(safeNextPath(next)).toBe("/dashboard");
+    expect(safeNextPath(new URLSearchParams("?inactive=1&next=%2F%2Fevil.com").get("next"))).toBe("/dashboard");
+    // Sin el aviso válido, con sesión, el destino es siempre relativo.
+    const fallback = decideRoute("/login", "?expired=true&next=//evil.com", true);
+    expect(fallback).toEqual({ action: "redirect", location: "/dashboard" });
   });
 });

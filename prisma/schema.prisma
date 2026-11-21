@@ -117,19 +117,21 @@ model OpeningHours {
 
 /// Usuario del panel. Un OWNER también puede atender (tener turnos y cortes).
 model User {
-  id           String       @id @default(cuid())
-  barbershopId String
-  barbershop   Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  email        String       @unique
-  passwordHash String?
-  name         String
-  role         Role         @default(BARBER)
-  active       Boolean      @default(true)
-  payoutScheme PayoutScheme @default(NONE)
-  payoutValue  Decimal      @default(0) @db.Decimal(12, 2)
-  lastLoginAt  DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  barbershopId      String
+  barbershop        Barbershop   @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  email             String       @unique
+  passwordHash      String?
+  name              String
+  role              Role         @default(BARBER)
+  active            Boolean      @default(true)
+  payoutScheme      PayoutScheme @default(NONE)
+  payoutValue       Decimal      @default(0) @db.Decimal(12, 2)
+  lastLoginAt       DateTime?
+  /// Último cambio de contraseña (null = sin revocación). Los JWT emitidos antes (a precisión de segundo) se rechazan.
+  passwordChangedAt DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   appointments   Appointment[]
   serviceRecords ServiceRecord[]

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { createSession, getSession } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { firstFieldErrors, type ActionResult } from "@/lib/barbershop-settings";
 import { changePasswordSchema } from "@/lib/barbers";
@@ -23,7 +23,7 @@ export async function changePassword(_prev: ActionResult | undefined, formData: 
 
   const user = await db.user.findFirst({
     where: { id: session.userId, barbershopId: session.barbershopId },
-    select: { id: true, passwordHash: true },
+    select: { id: true, barbershopId: true, role: true, passwordHash: true },
   });
   if (!user?.passwordHash || !(await verifyPassword(parsed.data.currentPassword, user.passwordHash))) {
     return { ok: false, error: WRONG_CURRENT, fieldErrors: { currentPassword: WRONG_CURRENT } };
@@ -31,11 +31,15 @@ export async function changePassword(_prev: ActionResult | undefined, formData: 
 
   const passwordHash = await hashPassword(parsed.data.newPassword);
   // Condicionado al hash leído: si la contraseña cambió en el medio, no pisamos nada.
+  // `passwordChangedAt` en el MISMO update: revoca las sesiones emitidas antes (ver `isSessionRevoked`).
   const { count } = await db.user.updateMany({
     where: { id: user.id, barbershopId: session.barbershopId, passwordHash: user.passwordHash },
-    data: { passwordHash },
+    data: { passwordHash, passwordChangedAt: new Date() },
   });
   if (count !== 1) return { ok: false, error: "No pudimos cambiar tu contraseña. Probá de nuevo." };
+
+  // Re-emite la cookie de ESTE dispositivo (iat >= segundo del cambio → sigue valiendo); los otros quedan afuera.
+  await createSession({ id: user.id, barbershopId: user.barbershopId, role: user.role });
 
   return { ok: true, message: "Listo, cambiamos tu contraseña." };
 }
