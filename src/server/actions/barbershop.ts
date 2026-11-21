@@ -12,8 +12,9 @@ import {
 } from "@/lib/barbershop-settings";
 import { barbershopBrandingTag } from "@/app/[slug]/data";
 
-// Mutaciones del panel de configuración (la liquidación por barbero está en `actions/barbers.ts`). Orden fijo: Zod `safeParse` → sesión y rol OWNER
-// → query con el `barbershopId` de la SESIÓN (nunca de un campo del formulario).
+// Mutaciones del panel de configuración (la liquidación por barbero está en `actions/barbers.ts`).
+// Orden fijo: Zod `safeParse` → sesión y rol OWNER → query con el `barbershopId` de la SESIÓN
+// (nunca de un campo del formulario).
 
 const SETTINGS_PATH = "/dashboard/settings";
 const FORBIDDEN: ActionResult = { ok: false, error: "No tenés permiso para cambiar la configuración." };

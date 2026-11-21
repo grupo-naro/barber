@@ -43,9 +43,9 @@ export function InviteLink({ invitePath, barbershopName, barberName }: { inviteP
           onFocus={(e) => e.currentTarget.select()}
           className="h-11 font-mono text-xs"
         />
-        <p className="text-sm text-muted-foreground">
-          Vence en 48 horas y sirve una sola vez. Copialo ahora: cuando recargues la página no lo vas a poder ver de
-          nuevo.
+        <p className="rounded-lg border bg-background p-3 text-sm font-medium text-foreground">
+          Copialo o mandalo ahora: cuando recargues la página no lo vas a poder ver de nuevo. Vence en 48 horas y sirve
+          una sola vez.
         </p>
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -55,6 +55,7 @@ export function InviteLink({ invitePath, barbershopName, barberName }: { inviteP
         </Button>
         <a
           href={origin ? whatsappInviteUrl(barbershopName, url) : undefined}
+          aria-disabled={origin ? undefined : true}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(buttonVariants({ size: "lg" }), "h-11")}
@@ -63,7 +64,11 @@ export function InviteLink({ invitePath, barbershopName, barberName }: { inviteP
           Enviar por WhatsApp
         </a>
       </div>
-      <p aria-live="polite" role="status" className="text-sm text-muted-foreground">
+      <p
+        aria-live="polite"
+        role="status"
+        className={copied === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}
+      >
         {copied === "ok" ? "Link copiado al portapapeles." : copied === "error" ? "No pudimos copiarlo: seleccioná el link y copialo a mano." : ""}
       </p>
     </div>

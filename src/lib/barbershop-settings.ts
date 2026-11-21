@@ -166,7 +166,7 @@ function isAtMost100(value: string): boolean {
   return int === "100" && frac === "";
 }
 
-/** Campos de liquidación (sin transformar). Los reutiliza el schema de edición de barbero (`src/lib/barbers.ts`). */
+/** Campos de liquidación (sin transformar). Los usa `updateBarberSchema` (`src/lib/barbers.ts`). */
 export const payoutFields = {
   payoutScheme: z.enum(PAYOUT_SCHEMES, { error: "Elegí un esquema de liquidación" }),
   payoutValue: z.string().nullish(),
@@ -196,20 +196,6 @@ export function resolvePayoutValue(
   }
   return value;
 }
-
-export const payoutSchema = z
-  .object({
-    userId: z.string().trim().min(1, "Usuario inválido").max(100),
-    ...payoutFields,
-  })
-  .transform((input, ctx) => {
-    const value = resolvePayoutValue(input, ctx);
-    if (value === null) return z.NEVER;
-    return { userId: input.userId, payoutScheme: input.payoutScheme, payoutValue: value };
-  });
-
-export type PayoutInput = z.input<typeof payoutSchema>;
-export type PayoutData = z.output<typeof payoutSchema>;
 
 // ---------------------------------------------------------------------------
 // Estado común de las actions

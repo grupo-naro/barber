@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireRole } from "@/lib/auth";
 import { getBarber } from "@/server/queries/barbers";
 import { describePayout } from "../format";
+import { BarberStatusBadge } from "../status-badge";
 import { BarberForm } from "./barber-form";
 import { RegenerateInviteForm } from "./regenerate-form";
 
@@ -19,7 +20,8 @@ async function BarberDetail({ params }: { params: PageProps<"/dashboard/barbers/
   // Lookup por `id` Y `barbershopId` de la sesión: un id de otra barbería da 404.
   const user = await getBarber(session.barbershopId, id);
   if (!user) notFound();
-  const pending = user.role === "BARBER" && user.status === "PENDING";
+  // Sin contraseña (pendiente o con el link vencido) se puede generar un link nuevo.
+  const pending = user.role === "BARBER" && user.status !== "ACTIVE";
 
   return (
     <>
@@ -28,10 +30,8 @@ async function BarberDetail({ params }: { params: PageProps<"/dashboard/barbers/
           <h1 className="text-2xl font-semibold tracking-tight break-words">{user.name}</h1>
           {user.role === "OWNER" ? (
             <Badge variant="secondary">Dueño/a</Badge>
-          ) : pending ? (
-            <Badge>Invitación pendiente</Badge>
           ) : (
-            <Badge variant="outline">Activo</Badge>
+            <BarberStatusBadge status={user.status} />
           )}
         </div>
         <p className="text-sm break-all text-muted-foreground">{user.email}</p>
@@ -45,8 +45,9 @@ async function BarberDetail({ params }: { params: PageProps<"/dashboard/barbers/
               <h2 className="text-lg font-semibold">Invitación</h2>
             </CardTitle>
             <CardDescription>
-              Todavía no eligió su contraseña. Si perdió el link o se venció, generá uno nuevo: los anteriores dejan de
-              servir.
+              {user.status === "EXPIRED"
+                ? "El link de invitación venció sin usarse. Generá uno nuevo y mandáselo."
+                : "Todavía no eligió su contraseña. Si perdió el link, generá uno nuevo: los anteriores dejan de servir."}
             </CardDescription>
           </CardHeader>
           <CardContent>

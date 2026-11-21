@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
 import { firstFieldErrors, type ActionResult } from "@/lib/barbershop-settings";
-import { createBarberSchema, updateBarberSchema } from "@/lib/barbers";
+import { createBarberSchema, regenerateInvitationSchema, updateBarberSchema } from "@/lib/barbers";
 import {
   generateInvitationToken,
   hashInvitationToken,
@@ -97,8 +97,9 @@ export async function createBarber(_prev: InviteResult | undefined, formData: Fo
 }
 
 export async function regenerateInvitation(_prev: InviteResult | undefined, formData: FormData): Promise<InviteResult> {
-  const userId = (text(formData, "userId") ?? "").trim();
-  if (userId.length === 0 || userId.length > 100) return { ok: false, error: NOT_FOUND };
+  const parsed = regenerateInvitationSchema.safeParse({ userId: text(formData, "userId") ?? "" });
+  if (!parsed.success) return { ok: false, error: NOT_FOUND };
+  const { userId } = parsed.data;
 
   const session = await ownerSession();
   if (!session) return { ok: false, error: FORBIDDEN };

@@ -3,7 +3,6 @@ import {
   normalizeDecimal,
   openingHoursErrors,
   openingHoursSchema,
-  payoutSchema,
   profileSchema,
   type OpeningHoursInput,
 } from "./barbershop-settings";
@@ -117,44 +116,6 @@ describe("openingHoursSchema", () => {
     const { byDay, form } = openingHoursErrors(r.error!, input);
     expect(Object.keys(byDay)).toEqual(["3"]);
     expect(form).toBeUndefined();
-  });
-});
-
-describe("payoutSchema", () => {
-  const base = { userId: "u1" };
-
-  it("acepta PERCENTAGE entre 0 y 100", () => {
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue: "0" }).data?.payoutValue).toBe("0");
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue: "100" }).data?.payoutValue).toBe("100");
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue: "40,5" }).data?.payoutValue).toBe("40.5");
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue: "99.99" }).success).toBe(true);
-  });
-
-  it.each(["101", "100.01", "-1", "-0.5", "1000"])("rechaza PERCENTAGE %s", (payoutValue) => {
-    const r = payoutSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue });
-    expect(r.success).toBe(false);
-    expect(r.error?.issues[0].path).toEqual(["payoutValue"]);
-  });
-
-  it("acepta FIXED_RENT con hasta 2 decimales como string", () => {
-    const r = payoutSchema.safeParse({ ...base, payoutScheme: "FIXED_RENT", payoutValue: "90000.50" });
-    expect(r.data).toEqual({ userId: "u1", payoutScheme: "FIXED_RENT", payoutValue: "90000.5" });
-    expect(typeof r.data?.payoutValue).toBe("string");
-  });
-
-  it.each(["90000.123", "-10", "abc", "", "1e5", "12345678901"])("rechaza FIXED_RENT %s", (payoutValue) => {
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "FIXED_RENT", payoutValue }).success).toBe(false);
-  });
-
-  it("NONE normaliza el valor a '0'", () => {
-    const r = payoutSchema.safeParse({ ...base, payoutScheme: "NONE", payoutValue: "1234" });
-    expect(r.data).toEqual({ userId: "u1", payoutScheme: "NONE", payoutValue: "0" });
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "NONE" }).data?.payoutValue).toBe("0");
-  });
-
-  it("rechaza un esquema desconocido o sin userId", () => {
-    expect(payoutSchema.safeParse({ ...base, payoutScheme: "OTRO", payoutValue: "1" }).success).toBe(false);
-    expect(payoutSchema.safeParse({ userId: "", payoutScheme: "NONE" }).success).toBe(false);
   });
 });
 

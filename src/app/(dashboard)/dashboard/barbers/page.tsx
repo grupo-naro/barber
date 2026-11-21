@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireRole } from "@/lib/auth";
 import { listBarbers } from "@/server/queries/barbers";
 import { CreateBarberForm } from "./create-barber-form";
+import { BarberStatusBadge } from "./status-badge";
 import { describePayout } from "./format";
 
 export const metadata: Metadata = { title: "Barberos — Barber" };
@@ -48,10 +49,8 @@ async function BarbersContent() {
                   <span className="font-medium break-words">{user.name}</span>
                   {user.role === "OWNER" ? (
                     <Badge variant="secondary">Dueño/a</Badge>
-                  ) : user.status === "ACTIVE" ? (
-                    <Badge variant="outline">Activo</Badge>
                   ) : (
-                    <Badge>Invitación pendiente</Badge>
+                    <BarberStatusBadge status={user.status} />
                   )}
                   {!user.active ? <Badge variant="outline">Inactivo</Badge> : null}
                 </div>

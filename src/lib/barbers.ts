@@ -11,7 +11,7 @@ const nameField = z
   .min(1, "Ingresá el nombre")
   .max(80, "El nombre puede tener hasta 80 caracteres");
 
-const userIdField = z.string().trim().min(1, "Usuario inválido").max(100, "Usuario inválido");
+export const userIdField = z.string().trim().min(1, "Usuario inválido").max(100, "Usuario inválido");
 
 const newPasswordField = z
   .string({ error: `La contraseña tiene que tener al menos ${PASSWORD_MIN_LENGTH} caracteres` })
@@ -31,7 +31,7 @@ export const createBarberSchema = z.object({
     .pipe(z.email({ error: "Ingresá un email válido" })),
 });
 
-/** Edición de barbero: nombre + liquidación, con las mismas reglas que `payoutSchema`. */
+/** Edición de barbero: nombre + liquidación (reglas en `resolvePayoutValue`). */
 export const updateBarberSchema = z
   .object({ userId: userIdField, name: nameField, ...payoutFields })
   .transform((input, ctx) => {
@@ -39,6 +39,9 @@ export const updateBarberSchema = z
     if (value === null) return z.NEVER;
     return { userId: input.userId, name: input.name, payoutScheme: input.payoutScheme, payoutValue: value };
   });
+
+/** "Generar nuevo link": solo el id (se vuelve a filtrar por el `barbershopId` de la sesión). */
+export const regenerateInvitationSchema = z.object({ userId: userIdField });
 
 /** Elegir contraseña al aceptar una invitación. */
 export const choosePasswordSchema = z
@@ -60,7 +63,18 @@ export const changePasswordSchema = z
 export type CreateBarberInput = z.input<typeof createBarberSchema>;
 export type UpdateBarberData = z.output<typeof updateBarberSchema>;
 
-/** Estado del acceso de un usuario del panel: activo si ya tiene contraseña. */
-export function barberAccessStatus(user: { passwordHash: string | null }): "ACTIVE" | "PENDING" {
-  return user.passwordHash === null ? "PENDING" : "ACTIVE";
+export type BarberAccessStatus = "ACTIVE" | "PENDING" | "EXPIRED";
+
+/**
+ * Estado del acceso de un usuario del panel: activo si ya tiene contraseña; si no, pendiente mientras tenga una
+ * invitación sin usar y vigente (`latestUnusedExpiresAt`), o vencido si no le queda ninguna.
+ */
+export function barberAccessStatus(
+  user: { passwordHash: string | null; latestUnusedExpiresAt: Date | null },
+  now: Date,
+): BarberAccessStatus {
+  if (user.passwordHash !== null) return "ACTIVE";
+  return user.latestUnusedExpiresAt !== null && now.getTime() < user.latestUnusedExpiresAt.getTime()
+    ? "PENDING"
+    : "EXPIRED";
 }

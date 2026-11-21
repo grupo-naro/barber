@@ -4,6 +4,7 @@ import {
   changePasswordSchema,
   choosePasswordSchema,
   createBarberSchema,
+  regenerateInvitationSchema,
   updateBarberSchema,
 } from "./barbers";
 
@@ -40,14 +41,37 @@ describe("updateBarberSchema", () => {
     expect(updateBarberSchema.safeParse({ ...base, payoutScheme: "FIXED_RENT", payoutValue: "120000" }).success).toBe(true);
   });
 
-  it.each(["101", "-1", "abc", ""])("rechaza PERCENTAGE %j en payoutValue", (payoutValue) => {
+  it("acepta PERCENTAGE entre 0 y 100", () => {
+    for (const [raw, out] of [["0", "0"], ["100", "100"], ["40,5", "40.5"], ["99.99", "99.99"]]) {
+      const r = updateBarberSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue: raw });
+      expect(r.data?.payoutValue).toBe(out);
+    }
+  });
+
+  it.each(["101", "100.01", "-1", "-0.5", "1000", "abc", ""])("rechaza PERCENTAGE %j en payoutValue", (payoutValue) => {
     const r = updateBarberSchema.safeParse({ ...base, payoutScheme: "PERCENTAGE", payoutValue });
     expect(r.success).toBe(false);
     expect(r.error?.issues[0].path).toEqual(["payoutValue"]);
   });
 
-  it("rechaza nombre vacío y esquema desconocido", () => {
+  it("acepta FIXED_RENT con hasta 2 decimales como string", () => {
+    const r = updateBarberSchema.safeParse({ ...base, payoutScheme: "FIXED_RENT", payoutValue: "90000.50" });
+    expect(r.data).toEqual({ ...base, payoutScheme: "FIXED_RENT", payoutValue: "90000.5" });
+    expect(typeof r.data?.payoutValue).toBe("string");
+  });
+
+  it.each(["90000.123", "-10", "abc", "", "1e5", "12345678901"])("rechaza FIXED_RENT %j", (payoutValue) => {
+    expect(updateBarberSchema.safeParse({ ...base, payoutScheme: "FIXED_RENT", payoutValue }).success).toBe(false);
+  });
+
+  it("NONE normaliza el valor a '0' (con o sin valor)", () => {
+    expect(updateBarberSchema.safeParse({ ...base, payoutScheme: "NONE", payoutValue: "1234" }).data?.payoutValue).toBe("0");
+    expect(updateBarberSchema.safeParse({ ...base, payoutScheme: "NONE" }).data?.payoutValue).toBe("0");
+  });
+
+  it("rechaza nombre vacío, userId vacío y esquema desconocido", () => {
     expect(updateBarberSchema.safeParse({ ...base, name: "", payoutScheme: "NONE" }).success).toBe(false);
+    expect(updateBarberSchema.safeParse({ ...base, userId: "", payoutScheme: "NONE" }).success).toBe(false);
     expect(updateBarberSchema.safeParse({ ...base, payoutScheme: "OTHER" }).success).toBe(false);
   });
 });
@@ -95,8 +119,25 @@ describe("changePasswordSchema", () => {
 });
 
 describe("barberAccessStatus", () => {
-  it("sin contraseña → pendiente; con contraseña → activo", () => {
-    expect(barberAccessStatus({ passwordHash: null })).toBe("PENDING");
-    expect(barberAccessStatus({ passwordHash: "scrypt$a$b" })).toBe("ACTIVE");
+  const now = new Date("2026-11-21T12:00:00.000Z");
+  const later = new Date("2026-11-22T12:00:00.000Z");
+
+  it("con contraseña → activo, aunque tenga invitaciones", () => {
+    expect(barberAccessStatus({ passwordHash: "scrypt$a$b", latestUnusedExpiresAt: null }, now)).toBe("ACTIVE");
+    expect(barberAccessStatus({ passwordHash: "scrypt$a$b", latestUnusedExpiresAt: later }, now)).toBe("ACTIVE");
+  });
+
+  it("sin contraseña: pendiente con link vigente, vencido sin link o con el link vencido (borde incluido)", () => {
+    expect(barberAccessStatus({ passwordHash: null, latestUnusedExpiresAt: later }, now)).toBe("PENDING");
+    expect(barberAccessStatus({ passwordHash: null, latestUnusedExpiresAt: null }, now)).toBe("EXPIRED");
+    expect(barberAccessStatus({ passwordHash: null, latestUnusedExpiresAt: now }, now)).toBe("EXPIRED");
+  });
+});
+
+describe("regenerateInvitationSchema", () => {
+  it("exige un userId acotado", () => {
+    expect(regenerateInvitationSchema.safeParse({ userId: " u1 " }).data).toEqual({ userId: "u1" });
+    expect(regenerateInvitationSchema.safeParse({ userId: "" }).success).toBe(false);
+    expect(regenerateInvitationSchema.safeParse({ userId: "x".repeat(101) }).success).toBe(false);
   });
 });

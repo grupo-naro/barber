@@ -8,7 +8,7 @@ import { ProfileForm } from "./profile-form";
 import { HoursForm } from "./hours-form";
 import { LandingForm } from "./landing-form";
 
-export const metadata: Metadata = { title: "Configuración — Barber" };
+export const metadata: Metadata = { title: "Ajustes — Barber" };
 
 async function Settings() {
   const session = await requireRole("OWNER");
@@ -75,7 +75,7 @@ function SettingsSkeleton() {
 export default function SettingsPage() {
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Configuración</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Ajustes</h1>
       <Suspense fallback={<SettingsSkeleton />}>
         <Settings />
       </Suspense>

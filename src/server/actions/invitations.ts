@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { createSession } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
@@ -22,15 +23,17 @@ export type AcceptInvitationState =
 
 const INVALID_LINK: AcceptInvitationState = { ok: false, error: INVALID_INVITATION_MESSAGE, invalidLink: true };
 
+const tokenSchema = z.string().refine(isPlausibleInvitationToken);
+
 class InvitationAlreadyUsed extends Error {}
 
 export async function acceptInvitation(
   _prev: AcceptInvitationState,
   formData: FormData,
 ): Promise<AcceptInvitationState> {
-  const tokenRaw = formData.get("token");
-  const token = typeof tokenRaw === "string" ? tokenRaw : "";
-  if (!isPlausibleInvitationToken(token)) return INVALID_LINK;
+  const tokenParsed = tokenSchema.safeParse(formData.get("token"));
+  if (!tokenParsed.success) return INVALID_LINK;
+  const token = tokenParsed.data;
 
   const parsed = choosePasswordSchema.safeParse({
     password: formData.get("password") ?? "",

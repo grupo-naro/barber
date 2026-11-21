@@ -2,7 +2,7 @@
 // sale de la sesión del servidor. Nunca se devuelve `passwordHash` ni `tokenHash`: solo el estado derivado.
 import "server-only";
 import { db } from "@/lib/db";
-import { barberAccessStatus } from "@/lib/barbers";
+import { barberAccessStatus, type BarberAccessStatus } from "@/lib/barbers";
 import type { PayoutSchemeValue } from "@/lib/barbershop-settings";
 import { hashInvitationToken, isInvitationUsable, isPlausibleInvitationToken } from "@/lib/invitations";
 
@@ -12,7 +12,7 @@ export type BarberListItem = {
   email: string;
   role: "OWNER" | "BARBER";
   active: boolean;
-  status: "ACTIVE" | "PENDING";
+  status: BarberAccessStatus;
   payoutScheme: PayoutSchemeValue;
   /** Decimal como string ("120000.00"): nunca float. */
   payoutValue: string;
@@ -27,6 +27,8 @@ const barberSelect = {
   passwordHash: true,
   payoutScheme: true,
   payoutValue: true,
+  // Solo la invitación sin usar más reciente, para distinguir "pendiente" de "link vencido".
+  invitations: { where: { usedAt: null }, orderBy: { expiresAt: "desc" }, take: 1, select: { expiresAt: true } },
 } as const;
 
 function toItem(user: {
@@ -38,14 +40,18 @@ function toItem(user: {
   passwordHash: string | null;
   payoutScheme: PayoutSchemeValue;
   payoutValue: { toFixed(digits: number): string };
-}): BarberListItem {
+  invitations: { expiresAt: Date }[];
+}, now: Date): BarberListItem {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     active: user.active,
-    status: barberAccessStatus(user),
+    status: barberAccessStatus(
+      { passwordHash: user.passwordHash, latestUnusedExpiresAt: user.invitations[0]?.expiresAt ?? null },
+      now,
+    ),
     payoutScheme: user.payoutScheme,
     payoutValue: user.payoutValue.toFixed(2),
   };
@@ -58,14 +64,15 @@ export async function listBarbers(barbershopId: string): Promise<BarberListItem[
     orderBy: [{ role: "asc" }, { active: "desc" }, { name: "asc" }],
     select: barberSelect,
   });
-  return users.map(toItem);
+  const now = new Date();
+  return users.map((user) => toItem(user, now));
 }
 
 /** Un usuario por `id` **y** `barbershopId` (un id de otra barbería → `null`). */
 export async function getBarber(barbershopId: string, id: string): Promise<BarberListItem | null> {
   if (id.length > 100) return null;
   const user = await db.user.findFirst({ where: { id, barbershopId }, select: barberSelect });
-  return user ? toItem(user) : null;
+  return user ? toItem(user, new Date()) : null;
 }
 
 export type InvitationPreview = { barbershopName: string; userName: string };
