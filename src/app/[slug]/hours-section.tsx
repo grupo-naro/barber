@@ -55,7 +55,7 @@ export async function HoursSection({ slug, timeZone, address, mapsUrl, phone }: 
                 </dt>
                 <dd
                   className={cn(
-                    "tabular-nums",
+                    "text-right tabular-nums",
                     d.closed && !d.isToday && "text-[#4a4a4a]",
                     d.isToday && "font-semibold",
                   )}
