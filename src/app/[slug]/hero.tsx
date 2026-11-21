@@ -84,7 +84,8 @@ export function Hero({ shop, coverUrl, logoUrl, instagram, whatsappHref }: Props
         className={cn(
           container,
           "flex flex-col justify-between gap-12 pt-6 pb-14 sm:pt-8 md:pb-20",
-          coverUrl ? "min-h-[86svh]" : "min-h-[72svh]",
+          // Ocupa toda la pantalla visible (svh = con las barras del navegador mostradas, p. ej. Safari en iPhone).
+          "min-h-svh",
         )}
       >
         <div className="flex items-start justify-between gap-4 pt-1 pl-1">
