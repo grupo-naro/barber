@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T18:49:39.440Z",
+  "updated": "2026-11-21T18:53:57.579Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -587,7 +587,7 @@
         "src/app/[slug]/hours-section.tsx",
         "scripts/booking-smoke.ts"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 1,
       "reviews": {
@@ -600,8 +600,8 @@
       "blocked_by": [],
       "depends_on": [],
       "builder": "builder-021-split-opening-hours",
-      "decision": "ESCALATE",
-      "note": "Schema + migración (unique de OpeningHours): requiere aprobación humana"
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana; migración aplicada"
     }
   ]
 }
