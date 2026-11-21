@@ -34,6 +34,7 @@ describe("weeklyHours", () => {
     { weekday: 1, opensAt: "09:00", closesAt: "20:00", closed: false },
     { weekday: 3, opensAt: "09:00", closesAt: "20:00", closed: true },
     { weekday: 4, opensAt: null, closesAt: "20:00", closed: false },
+    { weekday: 5, opensAt: "18:00", closesAt: "10:00", closed: false },
   ];
 
   it("ordena de lunes a domingo", () => {
@@ -57,7 +58,7 @@ describe("weeklyHours", () => {
       Martes: "Cerrado", // sin fila
       Miércoles: "Cerrado", // closed con horas cargadas
       Jueves: "Cerrado", // horas incompletas
-      Viernes: "Cerrado",
+      Viernes: "Cerrado", // apertura >= cierre
       Sábado: "10:00 – 18:00",
       Domingo: "Cerrado",
     });
@@ -71,6 +72,34 @@ describe("weeklyHours", () => {
   it("hasOpeningHours es false si no hay ningún día abierto", () => {
     expect(hasOpeningHours(weeklyHours([], 2))).toBe(false);
     expect(hasOpeningHours(weeklyHours(rows, 2))).toBe(true);
+  });
+});
+
+describe("weeklyHours con horario cortado", () => {
+  const split: OpeningHoursRow[] = [
+    { weekday: 2, opensAt: "17:00", closesAt: "21:00", closed: false },
+    { weekday: 1, opensAt: "09:00", closesAt: "20:00", closed: false },
+    { weekday: 2, opensAt: "10:00", closesAt: "14:00", closed: false },
+    { weekday: 3, opensAt: "10:00", closesAt: "14:00", closed: false },
+    { weekday: 3, opensAt: "17:00", closesAt: "21:00", closed: true },
+    { weekday: 0, opensAt: null, closesAt: null, closed: true },
+  ];
+
+  it("une las franjas del día ordenadas con ' · '", () => {
+    const byLabel = Object.fromEntries(weeklyHours(split, 2).map((d) => [d.label, d.hours]));
+    expect(byLabel.Lunes).toBe("09:00 – 20:00");
+    expect(byLabel.Martes).toBe("10:00 – 14:00 · 17:00 – 21:00");
+    expect(byLabel["Miércoles"]).toBe("10:00 – 14:00"); // la franja closed se ignora
+    expect(byLabel.Domingo).toBe("Cerrado");
+  });
+
+  it("isToday y hasOpeningHours no cambian con varias filas por día", () => {
+    const days = weeklyHours(split, 2);
+    expect(days).toHaveLength(7);
+    expect(days.filter((d) => d.isToday).map((d) => d.label)).toEqual(["Martes"]);
+    expect(days.find((d) => d.label === "Martes")?.closed).toBe(false);
+    expect(hasOpeningHours(days)).toBe(true);
+    expect(hasOpeningHours(weeklyHours([{ weekday: 2, opensAt: "10:00", closesAt: "14:00", closed: true }], 2))).toBe(false);
   });
 });
 

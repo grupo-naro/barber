@@ -22,7 +22,7 @@ export type WeeklyHoursDay = {
   weekday: number;
   /** "Lunes" … "Domingo". */
   label: string;
-  /** "09:00 – 20:00" o "Cerrado". */
+  /** "09:00 – 20:00", "10:00 – 14:00 · 17:00 – 21:00" (horario cortado) o "Cerrado". */
   hours: string;
   closed: boolean;
   isToday: boolean;
@@ -33,21 +33,36 @@ const WEEKDAY_LABELS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "V
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** Franja válida de una fila: no `closed`, horas "HH:mm" y apertura < cierre. */
+function isValidRange(row: OpeningHoursRow): row is OpeningHoursRow & { opensAt: string; closesAt: string } {
+  return (
+    !row.closed &&
+    typeof row.opensAt === "string" &&
+    typeof row.closesAt === "string" &&
+    TIME_RE.test(row.opensAt) &&
+    TIME_RE.test(row.closesAt) &&
+    row.opensAt < row.closesAt
+  );
+}
+
 /**
- * Horarios de la semana de lunes a domingo. Un día sin fila, marcado `closed` o con horas
- * vacías/ inválidas se muestra como "Cerrado". `todayWeekday` (0 = domingo) marca el día de hoy;
- * tiene que salir de `weekdayOf(businessDate(now, timeZone))`, nunca de `getDay()` local.
+ * Horarios de la semana de lunes a domingo. Hay una fila por franja: las franjas válidas de un día
+ * se ordenan por apertura y se unen con " · " (ej. "10:00 – 14:00 · 17:00 – 21:00"). Un día sin
+ * franjas válidas (sin filas, `closed` o con horas vacías/inválidas) se muestra como "Cerrado".
+ * `todayWeekday` (0 = domingo) marca el día de hoy; tiene que salir de
+ * `weekdayOf(businessDate(now, timeZone))`, nunca de `getDay()` local.
  */
 export function weeklyHours(rows: readonly OpeningHoursRow[], todayWeekday: number): WeeklyHoursDay[] {
-  const byWeekday = new Map(rows.map((r) => [r.weekday, r]));
   return WEEK_ORDER.map((weekday) => {
-    const row = byWeekday.get(weekday);
-    const open =
-      row && !row.closed && row.opensAt && row.closesAt && TIME_RE.test(row.opensAt) && TIME_RE.test(row.closesAt);
+    const ranges = rows
+      .filter((r) => r.weekday === weekday)
+      .filter(isValidRange)
+      .sort((a, b) => a.opensAt.localeCompare(b.opensAt) || a.closesAt.localeCompare(b.closesAt));
+    const open = ranges.length > 0;
     return {
       weekday,
       label: WEEKDAY_LABELS[weekday],
-      hours: open ? `${row.opensAt} – ${row.closesAt}` : "Cerrado",
+      hours: open ? ranges.map((r) => `${r.opensAt} – ${r.closesAt}`).join(" · ") : "Cerrado",
       closed: !open,
       isToday: weekday === todayWeekday,
     };
