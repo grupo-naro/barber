@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T16:17:07.845Z",
+  "updated": "2026-11-21T16:19:33.241Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -479,7 +479,7 @@
         "src/server/queries/barbershop.ts",
         "src/app/(dashboard)/dashboard/cash/page.tsx"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 2,
       "reviews": {
@@ -499,8 +499,8 @@
       "blocked_by": [],
       "depends_on": [],
       "builder": "builder-017-barber-management",
-      "decision": "ESCALATE",
-      "note": "Schema + migración (Invitation) y ruta pública que crea sesión: requiere aprobación humana"
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana; migración aplicada"
     }
   ]
 }
