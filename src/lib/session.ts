@@ -14,6 +14,8 @@ export type SessionPayload = {
   role: SessionRole;
   /** Vencimiento en milisegundos epoch. */
   expiresAt: number;
+  /** `iat` del JWT en segundos epoch (`null` si el token no lo trae). Se compara con `User.passwordChangedAt`. */
+  issuedAt: number | null;
 };
 
 const ALGORITHM = "HS256";
@@ -30,7 +32,7 @@ export function getSessionSecret(): Uint8Array {
 }
 
 export async function signSession(
-  payload: Omit<SessionPayload, "expiresAt"> & { expiresAt?: number },
+  payload: Omit<SessionPayload, "expiresAt" | "issuedAt"> & { expiresAt?: number },
   secret: Uint8Array = getSessionSecret(),
 ): Promise<string> {
   const expiresAt = payload.expiresAt ?? Date.now() + SESSION_DURATION_MS;
@@ -71,10 +73,23 @@ export async function verifySession(
     ) {
       return null;
     }
-    return { userId, barbershopId, role, expiresAt };
+    const issuedAt = typeof payload.iat === "number" && Number.isFinite(payload.iat) ? payload.iat : null;
+    return { userId, barbershopId, role, expiresAt, issuedAt };
   } catch {
     return null;
   }
+}
+
+/**
+ * Revocación por cambio de contraseña (pura). Compara a precisión de SEGUNDO, porque `iat` está en segundos:
+ * revocada si `issuedAtSec < floor(passwordChangedAt / 1000)`. Un token emitido en el mismo segundo del cambio
+ * (o después) sigue valiendo, así la cookie re-emitida al cambiar la contraseña no se auto-revoca.
+ * `passwordChangedAt` null → nunca revocada. Sin `iat` y con cambio registrado → revocada.
+ */
+export function isSessionRevoked(issuedAtSec: number | null | undefined, passwordChangedAt: Date | null): boolean {
+  if (passwordChangedAt === null) return false;
+  if (typeof issuedAtSec !== "number" || !Number.isFinite(issuedAtSec)) return true;
+  return issuedAtSec < Math.floor(passwordChangedAt.getTime() / 1000);
 }
 
 export function sessionCookieOptions(expiresAt: number) {

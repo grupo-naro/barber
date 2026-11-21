@@ -85,7 +85,8 @@ export async function acceptInvitation(
           ...(invitation.kind === "INVITE" ? { passwordHash: null } : {}),
           barbershop: { status: "ACTIVE" },
         },
-        data: { passwordHash, lastLoginAt: now },
+        // `passwordChangedAt`: un RESET cierra las sesiones previas; la que se crea abajo es posterior y vale.
+        data: { passwordHash, passwordChangedAt: now, lastLoginAt: now },
       });
       if (updated.count !== 1) throw new InvitationAlreadyUsed();
 

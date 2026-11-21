@@ -1,19 +1,23 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EXPIRED_MESSAGE, INACTIVE_MESSAGE } from "@/lib/auth";
 import { SUSPENDED_MESSAGE } from "@/lib/platform-admin";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Ingresar — Barber" };
 
 async function LoginFormWithNext({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {
-  const { next, suspended } = await searchParams;
+  const { next, suspended, inactive, expired } = await searchParams;
+  // Los pone `requireSession` (rutas constantes) cuando el JWT es válido pero la DB rechaza la sesión.
+  // Un solo aviso, con prioridad suspended > inactive > expired.
+  const notice =
+    suspended === "1" ? SUSPENDED_MESSAGE : inactive === "1" ? INACTIVE_MESSAGE : expired === "1" ? EXPIRED_MESSAGE : null;
   return (
     <>
-      {/* `?suspended=1` lo pone `requireSession` cuando la barbería de la sesión está suspendida. */}
-      {suspended === "1" ? (
+      {notice ? (
         <p role="alert" className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {SUSPENDED_MESSAGE}
+          {notice}
         </p>
       ) : null}
       <LoginForm next={typeof next === "string" ? next : undefined} />

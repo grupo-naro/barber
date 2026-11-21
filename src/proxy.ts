@@ -33,11 +33,21 @@ export function safeNextPath(next: string | null | undefined): string {
 
 export type RouteDecision = { action: "next" } | { action: "redirect"; location: string };
 
+/** Parámetros de aviso que `requireSession` pone en `/login` (rutas constantes en `src/lib/auth.ts`). */
+const LOGIN_NOTICE_PARAMS = ["suspended", "inactive", "expired"] as const;
+
 /**
- * `/login?suspended=1`: destino de `requireSession` cuando la barbería está suspendida. El JWT sigue siendo
- * válido (el proxy no mira la DB), así que esta URL NO se redirige a `/dashboard`: si no, habría un loop
- * `/login` ↔ `/dashboard`. Solo muestra el aviso; no da acceso a nada.
+ * `/login?suspended=1`, `/login?inactive=1` y `/login?expired=1`: destinos de `requireSession` cuando el JWT es
+ * válido pero la DB rechaza la sesión (barbería suspendida, usuario inactivo/de otro tenant, contraseña cambiada).
+ * El proxy no mira la DB, así que estas URLs NO se redirigen a `/dashboard`: si no, habría un loop
+ * `/login` ↔ `/dashboard`. Solo aceptan el valor exacto `"1"`. Solo muestran el aviso; no dan acceso a nada.
  */
+export function isLoginNotice(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return LOGIN_NOTICE_PARAMS.some((name) => params.get(name) === "1");
+}
+
+/** Solo el aviso de barbería suspendida (018). Se mantiene por compatibilidad; el proxy usa `isLoginNotice`. */
 export function isSuspendedNotice(search: string): boolean {
   return new URLSearchParams(search).get("suspended") === "1";
 }
@@ -48,7 +58,7 @@ export function decideRoute(pathname: string, search: string, hasValidSession: b
     const next = encodeURIComponent(pathname + search);
     return { action: "redirect", location: `/login?next=${next}` };
   }
-  if (pathname === "/login" && hasValidSession && !isSuspendedNotice(search)) {
+  if (pathname === "/login" && hasValidSession && !isLoginNotice(search)) {
     return { action: "redirect", location: "/dashboard" };
   }
   return { action: "next" };
