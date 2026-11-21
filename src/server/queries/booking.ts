@@ -3,7 +3,7 @@
 // se exponen campos públicos. Sin dependencias de Next (lo usa también un script).
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { computeHourlySlots, isValidDate, weekdayOf } from "@/lib/slots";
+import { computeHourlySlots, isOpenDay, isValidDate, weekdayOf } from "@/lib/slots";
 
 type Client = Prisma.TransactionClient | typeof db;
 
@@ -72,12 +72,17 @@ export async function getOnlineServices(slug: string): Promise<PublicService[]> 
   return services.map((s) => ({ ...s, price: s.price.toFixed(2) }));
 }
 
-/** Horario de atención de un día de semana de la barbería (`null` si no está cargado). */
+/**
+ * Franjas de atención (todas las filas) del día de semana de `date` en la barbería, ordenadas por
+ * apertura. `[]` si no hay nada cargado o la fecha es inválida. Las filas cerradas/inválidas se
+ * devuelven igual: `computeHourlySlots` / `isOpenDay` las ignoran.
+ */
 export async function getDayHours(client: Client, barbershopId: string, date: string) {
-  if (!isValidDate(date)) return null;
-  return client.openingHours.findUnique({
-    where: { barbershopId_weekday: { barbershopId, weekday: weekdayOf(date) } },
+  if (!isValidDate(date)) return [];
+  return client.openingHours.findMany({
+    where: { barbershopId, weekday: weekdayOf(date) },
     select: { opensAt: true, closesAt: true, closed: true },
+    orderBy: { opensAt: "asc" },
   });
 }
 
@@ -100,7 +105,7 @@ export async function getAvailableSlots(
   if (!service) return null;
 
   const hours = await getDayHours(db, shop.id, input.date);
-  const open = Boolean(hours && !hours.closed && hours.opensAt && hours.closesAt);
+  const open = isOpenDay(hours);
   const slots = computeHourlySlots({ hours, date: input.date, timeZone: shop.timezone, now: input.now });
   return { open, slots };
 }
