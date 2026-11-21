@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T18:53:57.579Z",
+  "updated": "2026-11-21T19:22:10.777Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -602,6 +602,39 @@
       "builder": "builder-021-split-opening-hours",
       "decision": "APPROVE",
       "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "019-session-revocation",
+      "title": "Revocar sesiones al cambiar contraseña + loop de usuario inactivo",
+      "branch": "factory/019-session-revocation",
+      "worktree": ".worktrees/019-session-revocation",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "src/lib/session.ts",
+        "src/lib/session.test.ts",
+        "src/lib/auth.ts",
+        "src/proxy.ts",
+        "src/proxy.test.ts",
+        "src/server/actions/account.ts",
+        "src/server/actions/invitations.ts",
+        "src/app/(auth)/login/page.tsx"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-019-session-revocation",
+      "decision": "ESCALATE",
+      "note": "Toca auth/proxy + migración (passwordChangedAt): requiere aprobación humana"
     }
   ]
 }

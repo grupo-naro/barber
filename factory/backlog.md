@@ -18,7 +18,7 @@ el scope real sale de `## Target Files (Scope)` en cada `spec.md`.
 - [ ] 009-fixed-rent-rule: ⚠ DECIDIR ANTES DE CORRER: regla de liquidación del alquiler fijo. Hoy: alquiler por día trabajado, el saldo puede quedar negativo. Default si no se especifica otra cosa: alquiler **mensual** que NO se descuenta en el cierre diario (el barbero cobra el 100% de lo suyo en el día) + resumen mensual por barbero con "alquiler del mes vs. facturado" en la pantalla de Caja. Ajustar también el seed (Nico: $120.000 mensual). · área: `src/lib/payouts.ts`, `src/app/(dashboard)/dashboard/cash/**`, `src/server/queries/cash.ts`, `prisma/seed.ts`
 - [ ] 010-reopen-cash-close: Reabrir un cierre de caja (solo OWNER, con confirmación y motivo obligatorio): desvincula los cortes, borra el cierre y sus liquidaciones y deja registro de quién y por qué. · área: `src/server/actions/cash.ts`, `src/app/(dashboard)/dashboard/cash/**` · depende de: 009
 - [ ] 011-customer-history-visibility: ⚠ DECIDIR ANTES DE CORRER: qué ve un BARBER en la ficha del cliente. Default si no se especifica otra cosa: ve las notas técnicas y las fechas/servicios de todos los cortes (sirve para atender), pero los montos solo de sus propios cortes; el OWNER ve todo. · área: `src/app/(dashboard)/dashboard/today/customers/**`, `src/server/queries/records.ts`
-- [ ] 012-logo-https-only: La URL del logo solo acepta `https:` (rechaza `http:`, `javascript:`, `data:`), con mensaje claro en el formulario. · área: `src/lib/barbershop-settings.ts`, `src/lib/barbershop-settings.test.ts`
+- [x] 012-logo-https-only: La URL del logo solo acepta `https:` (rechaza `http:`, `javascript:`, `data:`), con mensaje claro en el formulario. · área: `src/lib/barbershop-settings.ts`, `src/lib/barbershop-settings.test.ts` → OBSOLETO (desde 014 el logo se sube como archivo; ya no hay campo de URL)
 
 ## v1.2 — reservas por hora sin barbero (pedido del dueño)
 
@@ -43,7 +43,7 @@ el scope real sale de `## Target Files (Scope)` en cada `spec.md`.
 
 ## Seguimientos de seguridad (del job 018)
 
-- [ ] 019-session-revocation: Invalidar sesiones de barbería al cambiar la contraseña o al usar un link RESET (`passwordChangedAt` vs `iat`), y cortar el loop `/login` ↔ `/dashboard` de usuarios inactivos con JWT vigente (`/login?inactive=1`, mismo patrón que la suspensión). · área: `prisma/**`, `src/lib/auth.ts`, `src/lib/session.ts`, `src/proxy.ts`, `src/server/actions/{account,invitations}.ts`
+- [x] 019-session-revocation: Invalidar sesiones de barbería al cambiar la contraseña o al usar un link RESET (`passwordChangedAt` vs `iat`), y cortar el loop `/login` ↔ `/dashboard` de usuarios inactivos con JWT vigente (`/login?inactive=1`, mismo patrón que la suspensión). · área: `prisma/**`, `src/lib/auth.ts`, `src/lib/session.ts`, `src/proxy.ts`, `src/server/actions/{account,invitations}.ts` → 019-session-revocation
 - [ ] 020-admin-hardening: `ADMIN_SESSION_SECRET` propio para las sesiones de admin, límite de intentos en `/admin/login` y log de auditoría de acciones del admin. · área: `src/lib/admin-*.ts`, `src/app/admin/**`, `.env.example`
 
 ## v1.7 — horario cortado (pedido del dueño)
