@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T16:19:33.241Z",
+  "updated": "2026-11-21T17:39:44.545Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -501,6 +501,66 @@
       "builder": "builder-017-barber-management",
       "decision": "APPROVE",
       "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "018-platform-admin",
+      "title": "Panel de administración del SaaS",
+      "branch": "factory/018-platform-admin",
+      "worktree": ".worktrees/018-platform-admin",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "package.json",
+        "scripts/create-admin.ts",
+        "scripts/booking-smoke.ts",
+        "src/proxy.ts",
+        "src/proxy.test.ts",
+        "src/lib/auth.ts",
+        "src/lib/session.ts",
+        "src/lib/session.test.ts",
+        "src/lib/admin-session.ts",
+        "src/lib/admin-session.test.ts",
+        "src/lib/admin-auth.ts",
+        "src/lib/platform-admin.ts",
+        "src/lib/platform-admin.test.ts",
+        "src/server/actions/admin.ts",
+        "src/server/actions/auth.ts",
+        "src/server/actions/invitations.ts",
+        "src/server/queries/admin.ts",
+        "src/server/queries/barbers.ts",
+        "src/server/queries/booking.ts",
+        "src/server/queries/landing.ts",
+        "src/server/queries/slug-exists.ts",
+        "src/server/booking.ts",
+        "src/app/admin/**",
+        "src/app/(auth)/login/**",
+        "src/app/(auth)/invitacion/**",
+        "src/app/(dashboard)/layout.tsx",
+        "src/app/[slug]/data.ts",
+        "src/app/[slug]/page.tsx"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "PASS",
+          "ux": "PASS",
+          "ui": "CHANGES",
+          "code": "PASS"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-018-platform-admin",
+      "decision": "ESCALATE",
+      "note": "Toca auth/sesiones/proxy + schema y migración: requiere aprobación humana"
     }
   ]
 }
