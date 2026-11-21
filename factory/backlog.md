@@ -45,3 +45,7 @@ el scope real sale de `## Target Files (Scope)` en cada `spec.md`.
 
 - [ ] 019-session-revocation: Invalidar sesiones de barbería al cambiar la contraseña o al usar un link RESET (`passwordChangedAt` vs `iat`), y cortar el loop `/login` ↔ `/dashboard` de usuarios inactivos con JWT vigente (`/login?inactive=1`, mismo patrón que la suspensión). · área: `prisma/**`, `src/lib/auth.ts`, `src/lib/session.ts`, `src/proxy.ts`, `src/server/actions/{account,invitations}.ts`
 - [ ] 020-admin-hardening: `ADMIN_SESSION_SECRET` propio para las sesiones de admin, límite de intentos en `/admin/login` y log de auditoría de acciones del admin. · área: `src/lib/admin-*.ts`, `src/app/admin/**`, `.env.example`
+
+## v1.7 — horario cortado (pedido del dueño)
+
+- [x] 021-split-opening-hours: Permitir **hasta 2 franjas horarias por día** (ej. 10:00–14:00 y 17:00–21:00) en el horario de atención: edición en Ajustes, motor de turnos por hora que ofrece slots solo dentro de cada franja, horarios en la landing pública ("10:00–14:00 · 17:00–21:00"), validación de reservas en el servidor, alta de barbería del admin y seed. Los horarios existentes (una franja) se migran sin pérdida. · área: `prisma/**`, `src/lib/slots.ts`, `src/lib/barbershop-settings.ts`, `src/server/**/booking.ts`, `src/server/**/barbershop.ts`, `src/server/**/landing.ts`, `src/server/**/admin.ts`, `src/app/(dashboard)/dashboard/settings/**`, `src/app/[slug]/hours-section.tsx`, `prisma/seed.ts` → 021-split-opening-hours

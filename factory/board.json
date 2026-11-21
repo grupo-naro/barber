@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T18:09:16.897Z",
+  "updated": "2026-11-21T18:49:39.440Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -561,6 +561,47 @@
       "builder": "builder-018-platform-admin",
       "decision": "APPROVE",
       "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "021-split-opening-hours",
+      "title": "Horario cortado: 2 franjas por día",
+      "branch": "factory/021-split-opening-hours",
+      "worktree": ".worktrees/021-split-opening-hours",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "prisma/seed.ts",
+        "src/lib/slots.ts",
+        "src/lib/slots.test.ts",
+        "src/lib/barbershop-settings.ts",
+        "src/lib/barbershop-settings.test.ts",
+        "src/server/queries/booking.ts",
+        "src/server/booking.ts",
+        "src/server/queries/barbershop.ts",
+        "src/server/actions/barbershop.ts",
+        "src/server/queries/landing.ts",
+        "src/app/(dashboard)/dashboard/settings/hours-form.tsx",
+        "src/app/(dashboard)/dashboard/settings/page.tsx",
+        "src/app/[slug]/landing-format.ts",
+        "src/app/[slug]/landing-format.test.ts",
+        "src/app/[slug]/hours-section.tsx",
+        "scripts/booking-smoke.ts"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-021-split-opening-hours",
+      "decision": "ESCALATE",
+      "note": "Schema + migración (unique de OpeningHours): requiere aprobación humana"
     }
   ]
 }
