@@ -32,3 +32,7 @@ el scope real sale de `## Target Files (Scope)` en cada `spec.md`.
 ## v1.4 — estilo urbano (pedido del dueño, referencia: logo "Lo de Fanty Barbershop")
 
 - [x] 016-urban-landing-restyle: Reemplazar el estilo "oscuro y elegante" de la landing pública por uno **urbano**, igual para todas las barberías, con los colores del logo de referencia (negro, blanco, azul royal y rojo del poste de barbería): lettering con carácter (display condensada + script tipo graffiti como acento), contornos gruesos tipo sticker, motivo de franjas del poste. Sin cambios de datos ni de funcionalidad. · área: `src/app/[slug]/**` → 016-urban-landing-restyle
+
+## v1.5 — gestión de barberos (pedido del dueño)
+
+- [x] 017-barber-management: Pantalla "Barberos" (solo OWNER): alta de barbero con nombre + email y **link de invitación** de un solo uso (vence en 48 h, botón para copiar y para mandar por WhatsApp; el barbero elige su contraseña), listado de barberos con estado (activo / invitación pendiente) y **liquidación editable en la ficha de cada barbero** (se saca de Configuración). Además, **"Cambiar mi contraseña"** para cualquier usuario. Fuera de alcance por decisión del dueño: desactivar barberos y resetear acceso. · área: `prisma/**`, `src/app/(dashboard)/dashboard/barbers/**`, `src/app/(dashboard)/dashboard/account/**`, `src/app/invitacion/**`, `src/server/*/barbers.ts`, `src/lib/invitations.ts`, `src/lib/slugs.ts`, `src/lib/dashboard-nav.ts`, `src/app/(dashboard)/dashboard/settings/**` → 017-barber-management

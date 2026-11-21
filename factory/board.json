@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T15:11:54.935Z",
+  "updated": "2026-11-21T16:17:07.845Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -444,6 +444,63 @@
       "builder": "builder-016-urban-landing-restyle",
       "decision": "APPROVE",
       "note": "mergeado a main por aprobación humana (deuda: 404 global sin estilo urbano)"
+    },
+    {
+      "id": "017-barber-management",
+      "title": "Gestión de barberos e invitaciones",
+      "branch": "factory/017-barber-management",
+      "worktree": ".worktrees/017-barber-management",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "src/lib/invitations.ts",
+        "src/lib/invitations.test.ts",
+        "src/lib/barbers.ts",
+        "src/lib/barbers.test.ts",
+        "src/lib/barbershop-settings.ts",
+        "src/lib/barbershop-settings.test.ts",
+        "src/lib/slugs.ts",
+        "src/lib/slugs.test.ts",
+        "src/proxy.test.ts",
+        "src/lib/dashboard-nav.ts",
+        "src/lib/dashboard-nav.test.ts",
+        "src/components/dashboard-nav.tsx",
+        "src/app/(dashboard)/layout.tsx",
+        "src/app/(dashboard)/dashboard/barbers/**",
+        "src/app/(dashboard)/dashboard/account/**",
+        "src/app/(dashboard)/dashboard/settings/page.tsx",
+        "src/app/(dashboard)/dashboard/settings/payout-form.tsx",
+        "src/app/(auth)/invitacion/**",
+        "src/server/actions/barbers.ts",
+        "src/server/actions/account.ts",
+        "src/server/actions/invitations.ts",
+        "src/server/actions/barbershop.ts",
+        "src/server/queries/barbers.ts",
+        "src/server/queries/barbershop.ts",
+        "src/app/(dashboard)/dashboard/cash/page.tsx"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 2,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [
+        {
+          "security": "PASS",
+          "ux": "PASS",
+          "ui": "CHANGES",
+          "code": "CHANGES"
+        }
+      ],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-017-barber-management",
+      "decision": "ESCALATE",
+      "note": "Schema + migración (Invitation) y ruta pública que crea sesión: requiere aprobación humana"
     }
   ]
 }
