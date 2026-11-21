@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T19:22:10.777Z",
+  "updated": "2026-11-21T19:26:33.036Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -620,7 +620,7 @@
         "src/server/actions/invitations.ts",
         "src/app/(auth)/login/page.tsx"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 1,
       "reviews": {
@@ -633,8 +633,8 @@
       "blocked_by": [],
       "depends_on": [],
       "builder": "builder-019-session-revocation",
-      "decision": "ESCALATE",
-      "note": "Toca auth/proxy + migración (passwordChangedAt): requiere aprobación humana"
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana; migración aplicada"
     }
   ]
 }
