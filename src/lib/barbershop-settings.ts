@@ -66,37 +66,74 @@ export const WEEKDAY_LABELS = ["Domingo", "Lunes", "Martes", "Miércoles", "Juev
 /** Orden de visualización: lunes primero, domingo al final. */
 export const WEEKDAY_DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
 
+/** Máximo de franjas por día (horario cortado: mañana y tarde). */
+export const MAX_RANGES_PER_DAY = 2;
+
+export type TimeRange = { opensAt: string; closesAt: string };
+
+/** Un día de la semana: cerrado (`ranges: []`) o abierto con 1–2 franjas ordenadas por apertura. */
 export type DayHoursData = {
   weekday: number;
   closed: boolean;
-  opensAt: string | null;
-  closesAt: string | null;
+  ranges: TimeRange[];
 };
+
+const rangeInputSchema = z.object({
+  opensAt: z.string().nullish(),
+  closesAt: z.string().nullish(),
+});
 
 const dayHoursSchema = z
   .object({
     weekday: z.number().int().min(0).max(6),
     closed: z.boolean(),
-    opensAt: z.string().nullish(),
-    closesAt: z.string().nullish(),
+    ranges: z.array(rangeInputSchema).default([]),
   })
   .superRefine((day, ctx) => {
     if (day.closed) return;
-    const opensOk = typeof day.opensAt === "string" && isValidTime(day.opensAt);
-    const closesOk = typeof day.closesAt === "string" && isValidTime(day.closesAt);
-    if (!opensOk) ctx.addIssue({ code: "custom", path: ["opensAt"], message: "Hora de apertura inválida" });
-    if (!closesOk) ctx.addIssue({ code: "custom", path: ["closesAt"], message: "Hora de cierre inválida" });
-    // "HH:mm" con ceros a la izquierda: la comparación de strings respeta el orden horario.
-    if (opensOk && closesOk && day.opensAt! >= day.closesAt!) {
-      ctx.addIssue({ code: "custom", path: ["closesAt"], message: "El cierre tiene que ser después de la apertura" });
+    if (day.ranges.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["ranges"], message: "Cargá al menos un horario o marcá el día como cerrado" });
+      return;
+    }
+    if (day.ranges.length > MAX_RANGES_PER_DAY) {
+      ctx.addIssue({ code: "custom", path: ["ranges"], message: "Puede haber como mucho 2 franjas por día" });
+      return;
+    }
+    let allValid = true;
+    day.ranges.forEach((range, i) => {
+      const opensOk = typeof range.opensAt === "string" && isValidTime(range.opensAt);
+      const closesOk = typeof range.closesAt === "string" && isValidTime(range.closesAt);
+      if (!opensOk) ctx.addIssue({ code: "custom", path: ["ranges", i, "opensAt"], message: "Hora de apertura inválida" });
+      if (!closesOk) ctx.addIssue({ code: "custom", path: ["ranges", i, "closesAt"], message: "Hora de cierre inválida" });
+      // "HH:mm" con ceros a la izquierda: la comparación de strings respeta el orden horario.
+      if (opensOk && closesOk && range.opensAt! >= range.closesAt!) {
+        ctx.addIssue({ code: "custom", path: ["ranges", i, "closesAt"], message: "El cierre tiene que ser después de la apertura" });
+      }
+      if (!opensOk || !closesOk || range.opensAt! >= range.closesAt!) allValid = false;
+    });
+    if (!allValid) return;
+    const sorted = sortRanges(day.ranges as TimeRange[]);
+    for (let i = 1; i < sorted.length; i++) {
+      // Que se toquen (14:00–14:00) está permitido; que se pisen, no.
+      if (sorted[i].opensAt < sorted[i - 1].closesAt) {
+        ctx.addIssue({ code: "custom", path: ["ranges"], message: "Las franjas no se pueden superponer" });
+      }
     }
   })
   .transform(
     (day): DayHoursData =>
       day.closed
-        ? { weekday: day.weekday, closed: true, opensAt: null, closesAt: null }
-        : { weekday: day.weekday, closed: false, opensAt: day.opensAt!, closesAt: day.closesAt! },
+        ? { weekday: day.weekday, closed: true, ranges: [] }
+        : {
+            weekday: day.weekday,
+            closed: false,
+            ranges: sortRanges(day.ranges.map((r) => ({ opensAt: r.opensAt!, closesAt: r.closesAt! }))),
+          },
   );
+
+function sortRanges(ranges: readonly TimeRange[]): TimeRange[] {
+  return [...ranges].sort((a, b) => a.opensAt.localeCompare(b.opensAt) || a.closesAt.localeCompare(b.closesAt));
+}
 
 export const openingHoursSchema = z
   .array(dayHoursSchema)

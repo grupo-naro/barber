@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
+import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
 import {
+  MAX_RANGES_PER_DAY,
   firstFieldErrors,
   openingHoursErrors,
   openingHoursSchema,
@@ -55,12 +57,26 @@ export async function updateBarbershopProfile(_prev: ActionResult | undefined, f
   return { ok: true, message: "Perfil guardado." };
 }
 
+/**
+ * Franjas enviadas para un día: `opensAt-<weekday>-<i>` / `closesAt-<weekday>-<i>`. Lee una más
+ * que el máximo para que Zod rechace un día con 3 franjas en vez de ignorarla en silencio.
+ */
+function rangesFromForm(formData: FormData, weekday: number) {
+  const ranges: { opensAt: string | null; closesAt: string | null }[] = [];
+  for (let i = 0; i <= MAX_RANGES_PER_DAY; i++) {
+    const opensAt = text(formData, `opensAt-${weekday}-${i}`);
+    const closesAt = text(formData, `closesAt-${weekday}-${i}`);
+    if (opensAt === null && closesAt === null) continue;
+    ranges.push({ opensAt, closesAt });
+  }
+  return ranges;
+}
+
 export async function updateOpeningHours(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
   const input = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
     weekday,
-    closed: formData.get(`closed-${weekday}`) === "on",
-    opensAt: text(formData, `opensAt-${weekday}`),
-    closesAt: text(formData, `closesAt-${weekday}`),
+    closed: formData.get(`open-${weekday}`) !== "on",
+    ranges: rangesFromForm(formData, weekday),
   }));
   const parsed = openingHoursSchema.safeParse(input);
   if (!parsed.success) {
@@ -72,16 +88,18 @@ export async function updateOpeningHours(_prev: ActionResult | undefined, formDa
   if (!session) return FORBIDDEN;
   const { barbershopId } = session;
 
-  // Los 7 días o ninguno.
-  await db.$transaction(
-    parsed.data.map((day) =>
-      db.openingHours.upsert({
-        where: { barbershopId_weekday: { barbershopId, weekday: day.weekday } },
-        create: { barbershopId, ...day },
-        update: { closed: day.closed, opensAt: day.opensAt, closesAt: day.closesAt },
-      }),
-    ),
+  // Una fila por franja; un día cerrado es una sola fila `closed` sin horas.
+  const rows = parsed.data.flatMap((day): Prisma.OpeningHoursCreateManyInput[] =>
+    day.closed
+      ? [{ barbershopId, weekday: day.weekday, closed: true, opensAt: null, closesAt: null }]
+      : day.ranges.map((range) => ({ barbershopId, weekday: day.weekday, closed: false, ...range })),
   );
+
+  // Los 7 días o ninguno: borra SOLO las filas de la barbería de la sesión y crea las nuevas.
+  await db.$transaction([
+    db.openingHours.deleteMany({ where: { barbershopId } }),
+    db.openingHours.createMany({ data: rows }),
+  ]);
 
   revalidatePath(SETTINGS_PATH);
   return { ok: true, message: "Horarios guardados." };
