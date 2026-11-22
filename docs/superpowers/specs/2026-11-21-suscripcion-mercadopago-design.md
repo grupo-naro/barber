@@ -1,6 +1,6 @@
 # Suscripción automática con Mercado Pago — diseño
 
-Fecha: 2026-11-21 · Estado: borrador para aprobar
+Fecha: 2026-11-21 · Estado: listo para aprobar
 
 ## Intención
 
@@ -148,6 +148,14 @@ Las queries públicas (`getPublicBarbershop`, slug-exists, creación de reservas
 
 Variables de entorno: access token de MP, clave secreta de webhooks, URL pública base (para `back_url`). Separar
 credenciales de prueba y producción.
+
+### Pago manual y suscripción de MP conviven (decidido por el dueño del producto)
+
+Registrar un pago manual **no toca la suscripción de MP**. Si después entra un cobro de MP que se superpone con un
+período ya cubierto por un pago manual, se registra y extiende igual, y la ficha de la barbería muestra una alerta
+de **"posible cobro doble"**. Se considera superpuesto si el cobro de MP llega con `paidUntil` todavía en el futuro
+gracias a un pago manual de los últimos 30 días. El admin la resuelve a mano: devuelve desde MP o lo toma como el
+mes siguiente, y marca la alerta como revisada.
 
 ### Decisiones tomadas en la revisión (marcadas como decisión del diseñador)
 
