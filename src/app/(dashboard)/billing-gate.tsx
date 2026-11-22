@@ -7,10 +7,12 @@ import { canUsePanel } from "@/lib/billing";
 import { transferWhatsappUrl } from "@/lib/billing-access";
 import { cn } from "@/lib/utils";
 import { getPlatformSettings } from "@/server/queries/platform-settings";
+import { CopyValueButton } from "./copy-value-button";
 
 // Corte del panel por cobro. Lo usa `dashboard/layout.tsx` (todo `/dashboard/*` salvo "Mi cuenta", que vive en
 // el route group `(account)`). Las mutaciones se cortan aparte, con `requirePanelAccess` en cada server action.
-// Todo es Server Component: los datos de pago no viajan como props a componentes cliente.
+// Es Server Component. Lo único que viaja como prop a un componente cliente son el alias y el CBU/CVU (para el
+// botón "Copiar"), y solo en la rama OWNER: el barbero no recibe ningún dato de pago.
 
 /** Contenido del panel, o la pantalla de pago si el cobro bloquea el panel. Va dentro de un `<Suspense>`. */
 export async function PanelGate({ children }: { children: ReactNode }) {
@@ -49,11 +51,12 @@ export async function BillingGate({ session }: { session: Session }) {
   const settings = await getPlatformSettings();
   const mpLink = shop.mpStatus === "pending" ? safeHttpsUrl(shop.mpInitPoint) : null;
   const mpAuthorized = shop.mpStatus === "authorized";
+  // `copy`: nombre del dato para el botón "Copiar" (el titular no se copia).
   const transfer = [
-    { label: "Alias", value: settings?.transferAlias },
-    { label: "CBU/CVU", value: settings?.transferCbu },
-    { label: "Titular", value: settings?.transferHolder },
-  ].filter((row): row is { label: string; value: string } => Boolean(row.value?.trim()));
+    { label: "Alias", value: settings?.transferAlias, copy: "alias" },
+    { label: "CBU/CVU", value: settings?.transferCbu, copy: "CBU/CVU" },
+    { label: "Titular", value: settings?.transferHolder, copy: null },
+  ].filter((row): row is { label: string; value: string; copy: string | null } => Boolean(row.value?.trim()));
   const whatsapp = transferWhatsappUrl(settings?.contactWhatsapp, shop.name);
   const nothingToShow = !mpLink && !mpAuthorized && transfer.length === 0 && !whatsapp;
 
@@ -120,11 +123,14 @@ export async function BillingGate({ session }: { session: Session }) {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {transfer.length > 0 ? (
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+              <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
                 {transfer.map((row) => (
                   <div key={row.label} className="contents">
                     <dt className="text-muted-foreground">{row.label}</dt>
-                    <dd className="font-medium break-all">{row.value}</dd>
+                    <dd className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="font-medium break-all">{row.value}</span>
+                      {row.copy ? <CopyValueButton value={row.value} label={row.copy} /> : null}
+                    </dd>
                   </div>
                 ))}
               </dl>
