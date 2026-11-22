@@ -6,7 +6,7 @@
   "active_slots": [
     {
       "slot": 1,
-      "job": null,
+      "job": "025-billing-access",
       "port": 3001
     },
     {
@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T03:07:04.616369+00:00",
+  "updated": "2026-11-22T03:21:01.723812+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -700,6 +700,78 @@
       "builder": "builder-024-billing-core",
       "decision": "APPROVE (humano)",
       "note": "mergeado a main"
+    },
+    {
+      "id": "025-billing-access",
+      "title": "Bloqueo del panel por cobro y visibilidad pública",
+      "branch": "factory/025-billing-access",
+      "worktree": ".worktrees/025-billing-access",
+      "scope": [
+        "src/lib/auth.ts",
+        "src/lib/billing-access.ts",
+        "src/lib/billing-access.test.ts",
+        "src/app/(dashboard)/**",
+        "src/server/queries/public-barbershop-where.ts",
+        "src/server/queries/platform-settings.ts",
+        "src/server/queries/booking.ts",
+        "src/server/queries/landing.ts",
+        "src/server/queries/slug-exists.ts",
+        "src/server/booking.ts",
+        "src/server/billing-access.test.ts",
+        "src/server/actions/records.ts",
+        "src/server/actions/services.ts",
+        "src/server/actions/cash.ts",
+        "src/server/actions/barbers.ts",
+        "src/server/actions/barbershop.ts",
+        "src/server/actions/landing.ts"
+      ],
+      "stage": "building",
+      "slot": 1,
+      "round": 0,
+      "reviews": {},
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "024-billing-core"
+      ],
+      "builder": "builder-025-billing-access",
+      "decision": null,
+      "note": "builder implementando (slot 1, :3001)"
+    },
+    {
+      "id": "026-mercadopago-webhook",
+      "title": "Cliente de Mercado Pago y webhook",
+      "branch": "factory/026-mercadopago-webhook",
+      "worktree": ".worktrees/026-mercadopago-webhook",
+      "scope": [
+        "src/lib/mercadopago.ts",
+        "src/lib/mercadopago.test.ts",
+        "src/lib/mercadopago-signature.ts",
+        "src/lib/mercadopago-signature.test.ts",
+        "src/server/mercadopago-webhook.ts",
+        "src/server/mercadopago-webhook.test.ts",
+        "src/server/billing.ts",
+        "src/server/billing.test.ts",
+        "src/app/api/webhooks/mercadopago/**",
+        ".env.example"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "024-billing-core"
+      ],
+      "builder": "builder-026-mercadopago-webhook",
+      "decision": "ESCALATE",
+      "note": "agrega env vars con secretos (MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET): requiere aprobación humana; smoke test MP pendiente"
     }
   ]
 }
