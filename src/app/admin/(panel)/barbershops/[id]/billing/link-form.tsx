@@ -26,6 +26,8 @@ export function SubscriptionLinkForm({
 }) {
   const [state, action, pending] = useActionState<ActionResult | undefined, FormData>(generateSubscriptionLink, undefined);
   const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
+  // Tras un error, lo que se envió (React resetea el form después de la action, también si falla).
+  const sent = state && !state.ok ? state.values : undefined;
 
   return (
     <form
@@ -43,7 +45,7 @@ export function SubscriptionLinkForm({
           name="amount"
           label="Monto mensual (ARS)"
           inputMode="decimal"
-          defaultValue={defaultAmount}
+          defaultValue={sent?.amount ?? defaultAmount}
           placeholder="15000"
           required
           error={errors.amount}
@@ -54,7 +56,7 @@ export function SubscriptionLinkForm({
           name="payerEmail"
           label="Mail de la cuenta de MP del pagador"
           type="email"
-          defaultValue={defaultPayerEmail}
+          defaultValue={sent?.payerEmail ?? defaultPayerEmail}
           autoCapitalize="none"
           spellCheck={false}
           required

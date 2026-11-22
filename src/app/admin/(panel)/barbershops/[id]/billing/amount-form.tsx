@@ -19,6 +19,8 @@ export function ChangeAmountForm({
 }) {
   const [state, action, pending] = useActionState<ActionResult | undefined, FormData>(changeSubscriptionAmount, undefined);
   const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
+  // Tras un error, lo que se envió (React resetea el form después de la action, también si falla).
+  const sent = state && !state.ok ? state.values : undefined;
 
   return (
     <form action={action} className="flex flex-col gap-3" noValidate>
@@ -28,7 +30,7 @@ export function ChangeAmountForm({
         name="amount"
         label="Nuevo monto mensual (ARS)"
         inputMode="decimal"
-        defaultValue={defaultAmount}
+        defaultValue={sent?.amount ?? defaultAmount}
         placeholder="15000"
         required
         error={errors.amount}
