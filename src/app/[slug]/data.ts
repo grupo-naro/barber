@@ -20,7 +20,8 @@ export async function getCachedBarbershop(slug: string) {
 }
 
 /**
- * Contenido público de la landing (portada, logo, galería, redes). Mismo tag que el branding:
+ * Contenido público de la landing (portada, logo, galería, redes y colores de marca, que también lee
+ * `layout.tsx` para el tema; comparten esta misma entrada de caché). Mismo tag que el branding:
  * el panel lo invalida con `updateTag(barbershopBrandingTag(slug))` en cada cambio.
  * `null` si el slug no existe.
  */

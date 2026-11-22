@@ -40,7 +40,7 @@ async function Settings() {
             <h2 className="text-lg font-semibold">Página pública</h2>
           </CardTitle>
           <CardDescription>
-            Logo, portada, fotos de tus trabajos y redes para tu página ({`/${settings.profile.slug}`}).
+            Logo, portada, fotos de tus trabajos, redes y colores para tu página ({`/${settings.profile.slug}`}).
           </CardDescription>
         </CardHeader>
         <CardContent>

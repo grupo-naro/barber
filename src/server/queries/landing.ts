@@ -18,6 +18,8 @@ export type PublicLanding = {
   instagram: { handle: string; url: string } | null;
   whatsappUrl: string | null;
   mapsUrl: string | null;
+  /** Colores de marca validados que eligió el dueño (`null` = original). El layout los pasa por `brandPalette`. */
+  brand: { primary: string | null; secondary: string | null };
 };
 
 const gallerySelect = { id: true, storageKey: true, alt: true } as const;
@@ -33,6 +35,8 @@ export async function getPublicLanding(slug: string): Promise<PublicLanding | nu
       googleMapsUrl: true,
       whatsapp: true,
       address: true,
+      brandPrimary: true,
+      brandSecondary: true,
       galleryImages: { select: gallerySelect, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
     },
   });
@@ -46,6 +50,7 @@ export async function getPublicLanding(slug: string): Promise<PublicLanding | nu
     instagram: shop.instagram ? { handle: shop.instagram, url: instagramUrl(shop.instagram) } : null,
     whatsappUrl: whatsappUrl(shop.whatsapp),
     mapsUrl: shop.googleMapsUrl ?? (address ? mapsSearchUrl(address) : null),
+    brand: { primary: shop.brandPrimary, secondary: shop.brandSecondary },
   };
 }
 
@@ -56,6 +61,8 @@ export type LandingSettings = {
   instagram: string | null;
   googleMapsUrl: string | null;
   hasAddress: boolean;
+  brandPrimary: string | null;
+  brandSecondary: string | null;
 };
 
 /** Contenido de la landing para el panel. `barbershopId` tiene que salir de la sesión. */
@@ -68,6 +75,8 @@ export async function getLandingSettings(barbershopId: string): Promise<LandingS
       instagram: true,
       googleMapsUrl: true,
       address: true,
+      brandPrimary: true,
+      brandSecondary: true,
       galleryImages: { select: gallerySelect, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
     },
   });
@@ -79,6 +88,8 @@ export async function getLandingSettings(barbershopId: string): Promise<LandingS
     instagram: shop.instagram,
     googleMapsUrl: shop.googleMapsUrl,
     hasAddress: Boolean(shop.address?.trim()),
+    brandPrimary: shop.brandPrimary,
+    brandSecondary: shop.brandSecondary,
   };
 }
 

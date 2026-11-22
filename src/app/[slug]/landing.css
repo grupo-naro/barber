@@ -1,6 +1,9 @@
 /*
  * Tema de la landing pública (/[slug]): urbano, de sticker y barber pole.
- * Paleta fija sacada del logo: tinta (negro), tiza (blanco), royal (azul) y rojo.
+ * Paleta sacada del logo: tinta (negro), tiza (blanco), royal (azul) y rojo. El dueño puede cambiar
+ * royal y rojo desde el panel: el layout pisa `--royal`, `--rojo`, `--rojo-claro` y `--royal-muted`
+ * en el `style` de la raíz con la paleta de `src/lib/brand-colors.ts` (contraste ajustado).
+ * Sin colores propios no hay `style` y rigen los valores de acá.
  * Pisa los tokens de shadcn dentro del wrapper (`.dark` + `.landing-theme`), así Button/Badge/Card
  * heredan el estilo sin tocar `globals.css` ni `src/components/ui/**`.
  * Cada sección elige su superficie con `.landing-paper` (blanca) o `.landing-royal` (azul), que
@@ -85,7 +88,8 @@
 .landing-theme .landing-royal {
   --background: var(--royal);
   --foreground: var(--tiza);
-  --muted-foreground: #dfe3ff; /* 8.65:1 sobre royal */
+  /* 8.65:1 sobre royal. Con colores propios, `--royal-muted` (≥ 4.5:1) lo pone el layout. */
+  --muted-foreground: var(--royal-muted, #dfe3ff);
   --border: rgb(255 255 255 / 35%);
   --ring: var(--tiza);
   --sticker-shadow: var(--tinta);
