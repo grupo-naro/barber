@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-21T19:26:33.036Z",
+  "updated": "2026-11-22T01:46:28.166Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -635,6 +635,42 @@
       "builder": "builder-019-session-revocation",
       "decision": "APPROVE",
       "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "023-landing-colors",
+      "title": "Colores de marca por barbería",
+      "branch": "factory/023-landing-colors",
+      "worktree": ".worktrees/023-landing-colors",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "src/lib/brand-colors.ts",
+        "src/lib/brand-colors.test.ts",
+        "src/server/actions/landing.ts",
+        "src/server/queries/landing.ts",
+        "src/app/[slug]/layout.tsx",
+        "src/app/[slug]/data.ts",
+        "src/app/[slug]/landing.css",
+        "src/app/[slug]/not-found.tsx",
+        "src/app/(dashboard)/dashboard/settings/page.tsx",
+        "src/app/(dashboard)/dashboard/settings/landing-form.tsx",
+        "src/app/(dashboard)/dashboard/settings/brand-colors-form.tsx"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-023-landing-colors",
+      "decision": "ESCALATE",
+      "note": "Schema + migración (brandPrimary/brandSecondary): requiere aprobación humana"
     }
   ]
 }
