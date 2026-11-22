@@ -294,6 +294,157 @@ describe("generateSubscriptionLink", () => {
   });
 });
 
+describe("generateSubscriptionLink: carreras (028)", () => {
+  it("otra pestaña guarda otro preapproval mientras se crea: ok:false, se cancela el nuevo y queda el de la otra", async () => {
+    const oldId = `pre-old-${randomUUID()}`;
+    const otherTabId = `pre-other-${randomUUID()}`;
+    const shop = await makeShop({ mpPreapprovalId: oldId, mpStatus: "authorized" });
+    const fresh = preapproval();
+    mockedCancel.mockResolvedValue(preapproval({ status: "cancelled" }));
+    mockedCreate.mockImplementation(async () => {
+      await db.barbershop.update({ where: { id: shop.id }, data: { mpPreapprovalId: otherTabId, mpStatus: "pending" } });
+      return fresh;
+    });
+
+    const result = await generateSubscriptionLink(undefined, form({ id: shop.id, amount: "18000", payerEmail: "a@example.com" }));
+
+    expectGenericError(result);
+    expect(result.ok === false && result.error).toContain("Recargá");
+    expect(mockedCancel).toHaveBeenNthCalledWith(1, oldId);
+    expect(mockedCancel).toHaveBeenLastCalledWith(fresh.id);
+    const row = await shopRow(shop.id);
+    expect(row.mpPreapprovalId).toBe(otherTabId);
+    expect(row.mpStatus).toBe("pending");
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it("se desactiva el cobro mientras se crea: se cancela el nuevo y no queda guardado", async () => {
+    const shop = await makeShop();
+    const fresh = preapproval();
+    mockedCancel.mockResolvedValue(preapproval({ id: fresh.id, status: "cancelled" }));
+    mockedCreate.mockImplementation(async () => {
+      await db.barbershop.update({ where: { id: shop.id }, data: { billingEnabled: false } });
+      return fresh;
+    });
+
+    const result = await generateSubscriptionLink(undefined, form({ id: shop.id, amount: "18000", payerEmail: "a@example.com" }));
+
+    expect(result.ok).toBe(false);
+    expect(mockedCancel).toHaveBeenCalledTimes(1);
+    expect(mockedCancel).toHaveBeenCalledWith(fresh.id);
+    const row = await shopRow(shop.id);
+    expect(row.billingEnabled).toBe(false);
+    expect(row.mpPreapprovalId).toBeNull();
+    expect(row.mpInitPoint).toBeNull();
+  });
+
+  it("si la cancelación compensatoria también falla, el log lleva el id del preapproval nuevo", async () => {
+    const shop = await makeShop();
+    const fresh = preapproval();
+    mockedCancel.mockRejectedValue(new MpError(500, MP_SECRET_TEXT));
+    mockedCreate.mockImplementation(async () => {
+      await db.barbershop.update({ where: { id: shop.id }, data: { billingEnabled: false } });
+      return fresh;
+    });
+
+    const result = await generateSubscriptionLink(undefined, form({ id: shop.id, amount: "18000", payerEmail: "a@example.com" }));
+
+    expectGenericError(result);
+    const logged = vi.mocked(console.error).mock.calls.map(([message]) => String(message));
+    expect(logged.some((message) => message.includes(fresh.id) && message.includes("cancelPreapproval"))).toBe(true);
+  });
+
+  it("create falla y el update del rollback también: resuelve con el error de MP y loguea", async () => {
+    const oldId = `pre-old-${randomUUID()}`;
+    const shop = await makeShop({ mpPreapprovalId: oldId, mpStatus: "authorized" });
+    mockedCancel.mockResolvedValue(preapproval({ id: oldId, status: "cancelled" }));
+    mockedCreate.mockRejectedValue(new MpError(400, MP_SECRET_TEXT));
+    vi.spyOn(db.barbershop, "updateMany").mockRejectedValueOnce(new Error("db caída"));
+
+    const result = await generateSubscriptionLink(undefined, form({ id: shop.id, amount: "18000", payerEmail: "a@example.com" }));
+
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("Cancelamos la suscripción anterior") });
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining(oldId), expect.any(Error));
+  });
+});
+
+describe("setBillingEnabled: carrera al desactivar (028)", () => {
+  it("si el mpPreapprovalId cambia mientras se cancela en MP: ok:false y el cobro sigue activado", async () => {
+    const preId = `pre-${randomUUID()}`;
+    const otherTabId = `pre-other-${randomUUID()}`;
+    const shop = await makeShop({ mpPreapprovalId: preId, mpStatus: "authorized" });
+    mockedCancel.mockImplementation(async () => {
+      await db.barbershop.update({ where: { id: shop.id }, data: { mpPreapprovalId: otherTabId, mpStatus: "pending" } });
+      return preapproval({ id: preId, status: "cancelled" });
+    });
+
+    const result = await setBillingEnabled(undefined, form({ id: shop.id, enabled: "0" }));
+
+    expectGenericError(result);
+    expect(mockedCancel).toHaveBeenCalledWith(preId);
+    const row = await shopRow(shop.id);
+    expect(row.billingEnabled).toBe(true);
+    expect(row.mpPreapprovalId).toBe(otherTabId);
+    expect(row.mpStatus).toBe("pending");
+    expect(updateTag).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalled();
+  });
+});
+
+describe("values en los errores (028)", () => {
+  it("generateSubscriptionLink con monto inválido devuelve lo enviado", async () => {
+    const shop = await makeShop();
+    const result = await generateSubscriptionLink(
+      undefined,
+      form({ id: shop.id, amount: "abc", payerEmail: "Duenio@Example.com" }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.fieldErrors?.amount).toBeTruthy();
+    expect(result.values).toEqual({ amount: "abc", payerEmail: "Duenio@Example.com" });
+    expect(mockedCreate).not.toHaveBeenCalled();
+  });
+
+  it("generateSubscriptionLink con MP fallando devuelve lo enviado", async () => {
+    const shop = await makeShop();
+    mockedCreate.mockRejectedValue(new MpError(500, MP_SECRET_TEXT));
+    const result = await generateSubscriptionLink(undefined, form({ id: shop.id, amount: "18000", payerEmail: "a@example.com" }));
+    expect(result).toMatchObject({ ok: false, values: { amount: "18000", payerEmail: "a@example.com" } });
+  });
+
+  it("changeSubscriptionAmount con MP fallando devuelve el monto enviado", async () => {
+    const shop = await makeShop({ mpPreapprovalId: `pre-${randomUUID()}`, mpStatus: "authorized" });
+    mockedUpdateAmount.mockRejectedValue(new MpError(500, MP_SECRET_TEXT));
+    const result = await changeSubscriptionAmount(undefined, form({ id: shop.id, amount: "21000" }));
+    expect(result).toMatchObject({ ok: false, values: { amount: "21000" } });
+  });
+
+  it("registerManualPayment con el registro fallando devuelve note y months enviados", async () => {
+    const shop = await makeShop();
+    const today = businessDate(new Date(), TZ);
+    vi.spyOn(db, "$transaction").mockRejectedValueOnce(new Error("db caída"));
+    const result = await registerManualPayment(
+      undefined,
+      form({ id: shop.id, amount: "15000", paidAt: today, months: "3", note: "Transferencia de marzo" }),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      values: { amount: "15000", paidAt: today, months: "3", note: "Transferencia de marzo" },
+    });
+    expect(await db.subscriptionPayment.count({ where: { barbershopId: shop.id } })).toBe(0);
+  });
+
+  it("registerManualPayment con fecha futura devuelve lo enviado", async () => {
+    const shop = await makeShop();
+    const tomorrow = addDays(businessDate(new Date(), TZ), 1);
+    const result = await registerManualPayment(
+      undefined,
+      form({ id: shop.id, amount: "15000", paidAt: tomorrow, months: "2", note: "x" }),
+    );
+    expect(result).toMatchObject({ ok: false, values: { paidAt: tomorrow, months: "2", note: "x" } });
+  });
+});
+
 describe("changeSubscriptionAmount", () => {
   it("con updatePreapprovalAmount que lanza, monthlyAmount no cambia", async () => {
     const preId = `pre-${randomUUID()}`;

@@ -240,7 +240,13 @@ export function resolvePayoutValue(
 
 export type ActionResult =
   | { ok: true; message?: string; /** Valores normalizados que guardó el servidor, para reflejarlos en el form. */ values?: Record<string, string> }
-  | { ok: false; error: string; fieldErrors?: Record<string, string> };
+  | {
+      ok: false;
+      error: string;
+      fieldErrors?: Record<string, string>;
+      /** Lo que envió el usuario (como string), para que el form no lo pierda tras el error. */
+      values?: Record<string, string>;
+    };
 
 /** Primer mensaje por campo (path[0]) de un ZodError. */
 export function firstFieldErrors(error: z.ZodError): Record<string, string> {
