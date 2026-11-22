@@ -42,6 +42,9 @@ export default function AdminPanelLayout({ children }: LayoutProps<"/admin">) {
           <Link href="/admin/barbershops/new" className="text-muted-foreground hover:text-foreground">
             Nueva barbería
           </Link>
+          <Link href="/admin/settings" className="text-muted-foreground hover:text-foreground">
+            Ajustes
+          </Link>
         </nav>
         <Suspense fallback={<div className="h-8 w-32" aria-busy="true" />}>
           <AdminIdentity />

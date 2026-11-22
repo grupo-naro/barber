@@ -2,12 +2,14 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ExternalLink, Plus, Search } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin-auth";
+import { billingState } from "@/lib/billing";
 import { normalizeSearch } from "@/lib/platform-admin";
 import { listBarbershopsWithMetrics } from "@/server/queries/admin";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "./format";
+import { BillingBadge } from "./billing-badge";
 import { PlanBadge } from "./plan-badge";
 import { BarbershopStatusBadge } from "./status-badge";
 
@@ -36,12 +38,13 @@ async function BarbershopsTable({ searchParams }: { searchParams: PageProps<"/ad
       </p>
 
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[960px] text-sm">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-2 font-medium">Nombre</th>
               <th scope="col" className="px-3 py-2 font-medium">Slug</th>
               <th scope="col" className="px-3 py-2 font-medium">Estado</th>
+              <th scope="col" className="px-3 py-2 font-medium">Cobro</th>
               <th scope="col" className="px-3 py-2 font-medium">Plan</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Barberos activos</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Turnos del mes</th>
@@ -52,7 +55,7 @@ async function BarbershopsTable({ searchParams }: { searchParams: PageProps<"/ad
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={9} className="px-3 py-6 text-center text-muted-foreground">
                   No hay barberías{q ? " que coincidan con la búsqueda" : " todavía"}.
                 </td>
               </tr>
@@ -78,6 +81,9 @@ async function BarbershopsTable({ searchParams }: { searchParams: PageProps<"/ad
                   </td>
                   <td className="px-3 py-2">
                     <BarbershopStatusBadge status={row.status} />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <BillingBadge state={billingState({ billingEnabled: row.billingEnabled, paidUntil: row.planExpiresAt }, now)} />
                   </td>
                   <td className="px-3 py-2">
                     <PlanBadge plan={row.plan} planExpiresAt={row.planExpiresAt} timeZone={row.timezone} now={now} />

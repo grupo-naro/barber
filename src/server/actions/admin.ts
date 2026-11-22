@@ -133,6 +133,8 @@ export async function createBarbershop(
           timezone: DEFAULT_TIMEZONE,
           status: "ACTIVE",
           plan: "FREE",
+          // Las barberías nuevas nacen con cobro: quedan AWAITING_FIRST_PAYMENT hasta el primer pago.
+          billingEnabled: true,
           openingHours: { create: defaultOpeningHours() },
         },
         select: { id: true },
@@ -196,7 +198,10 @@ export async function updateBarbershop(_prev: ActionResult | undefined, formData
   if (!(await getAdminSession())) return { ok: false, error: UNAUTHORIZED };
   const input = parsed.data;
 
-  const shop = await db.barbershop.findUnique({ where: { id: input.id }, select: { id: true, slug: true, timezone: true } });
+  const shop = await db.barbershop.findUnique({
+    where: { id: input.id },
+    select: { id: true, slug: true, timezone: true, billingEnabled: true },
+  });
   if (!shop) return { ok: false, error: NOT_FOUND };
   const owner = await findOwner(shop.id);
   if (!owner) return { ok: false, error: "Esta barbería no tiene dueño cargado." };
@@ -219,7 +224,10 @@ export async function updateBarbershop(_prev: ActionResult | undefined, formData
           name: input.name,
           slug: input.slug,
           plan: input.plan,
-          planExpiresAt: input.planExpiresAt ? planExpiresAtFromDate(input.planExpiresAt, shop.timezone) : null,
+          // Con el cobro activado, "pagado hasta" solo lo mueve un pago (`recordPayment`): se ignora lo que venga.
+          ...(shop.billingEnabled
+            ? {}
+            : { planExpiresAt: input.planExpiresAt ? planExpiresAtFromDate(input.planExpiresAt, shop.timezone) : null }),
         },
       }),
       db.user.updateMany({ where: { id: owner.id, barbershopId: shop.id }, data: { email: input.ownerEmail } }),
