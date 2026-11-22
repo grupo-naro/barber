@@ -81,7 +81,7 @@ export function BrandColorsForm({ primary, secondary }: { primary: string | null
                 type="button"
                 variant="outline"
                 size="lg"
-                className="h-11 justify-start gap-2 px-2.5"
+                className="h-auto min-h-11 justify-start gap-2 px-2.5 py-1.5 text-left whitespace-normal"
                 aria-pressed={active}
                 onClick={() => setValues({ primary: preset.primary, secondary: preset.secondary })}
               >
@@ -89,7 +89,7 @@ export function BrandColorsForm({ primary, secondary }: { primary: string | null
                   <span className="size-5" style={{ backgroundColor: preset.primary }} />
                   <span className="size-5" style={{ backgroundColor: preset.secondary }} />
                 </span>
-                <span className="min-w-0 truncate">{preset.name}</span>
+                <span className="min-w-0 leading-tight">{preset.name}</span>
                 {active ? <Check aria-hidden className="ml-auto" /> : null}
               </Button>
             );
