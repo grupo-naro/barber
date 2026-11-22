@@ -118,7 +118,9 @@ export type PlatformSettingsInput = z.output<typeof platformSettingsSchema>;
 // Helpers
 
 /** Hay una suscripción de MP que puede cobrar (o autorizarse): existe y no está cancelada. */
-export function hasLivePreapproval(shop: { mpPreapprovalId: string | null; mpStatus: string | null }): boolean {
+export function hasLivePreapproval<T extends { mpPreapprovalId: string | null; mpStatus: string | null }>(
+  shop: T,
+): shop is T & { mpPreapprovalId: string } {
   return shop.mpPreapprovalId !== null && shop.mpStatus !== "cancelled";
 }
 

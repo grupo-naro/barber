@@ -25,7 +25,7 @@ const mockedRecordPayment = vi.mocked(recordPayment);
 
 const created: string[] = [];
 
-async function makeShop(mpStatus: string | null = "authorized") {
+async function makeShop(mpStatus: string | null = "authorized", monthlyAmount: string | null = null) {
   const mpPreapprovalId = `pre-${randomUUID()}`;
   const shop = await db.barbershop.create({
     data: {
@@ -34,6 +34,7 @@ async function makeShop(mpStatus: string | null = "authorized") {
       billingEnabled: true,
       mpPreapprovalId,
       mpStatus,
+      monthlyAmount,
     },
     select: { id: true },
   });
@@ -199,6 +200,59 @@ describe("handleMpNotification: pagos", () => {
     mockedGetPayment.mockResolvedValueOnce(payment({ preapprovalId: shop.mpPreapprovalId }));
     mockedRecordPayment.mockRejectedValueOnce(new Error("db caída"));
     await expect(handleMpNotification({ type: "payment", dataId: "111222333" })).rejects.toThrow("db caída");
+  });
+});
+
+describe("handleMpNotification: montos", () => {
+  function amountWarns() {
+    return vi.mocked(console.warn).mock.calls.filter(([message]) => String(message).includes("monto"));
+  }
+
+  it.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+  ])("monto %s: ignored con log de anomalía, sin recordPayment", async (_label, transaction_amount) => {
+    const shop = await makeShop();
+    mockedGetPayment.mockResolvedValueOnce(payment({ transaction_amount, preapprovalId: shop.mpPreapprovalId }));
+
+    await expect(handleMpNotification({ type: "payment", dataId: "111222333" })).resolves.toBe("ignored");
+    expect(mockedRecordPayment).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("[mp-webhook] anomalía"),
+      expect.objectContaining({ paymentId: "111222333", preapprovalId: shop.mpPreapprovalId }),
+    );
+  });
+
+  it("monto distinto de monthlyAmount: registra igual y avisa", async () => {
+    const shop = await makeShop("authorized", "20000.00");
+    mockedGetPayment.mockResolvedValueOnce(payment({ transaction_amount: 15000, preapprovalId: shop.mpPreapprovalId }));
+
+    await expect(handleMpNotification({ type: "payment", dataId: "111222333" })).resolves.toBe("processed");
+    expect(mockedRecordPayment).toHaveBeenCalledTimes(1);
+    expect(mockedRecordPayment.mock.calls[0][0].amount).toBe("15000.00");
+    expect(amountWarns()).toHaveLength(1);
+    expect(amountWarns()[0][1]).toMatchObject({
+      paymentId: "111222333",
+      barbershopId: shop.id,
+      amount: "15000.00",
+      monthlyAmount: "20000.00",
+    });
+  });
+
+  it("monto igual a monthlyAmount: sin aviso", async () => {
+    const shop = await makeShop("authorized", "15000.00");
+    mockedGetPayment.mockResolvedValueOnce(payment({ transaction_amount: 15000, preapprovalId: shop.mpPreapprovalId }));
+    await expect(handleMpNotification({ type: "payment", dataId: "111222333" })).resolves.toBe("processed");
+    expect(mockedRecordPayment).toHaveBeenCalledTimes(1);
+    expect(amountWarns()).toHaveLength(0);
+  });
+
+  it("sin monthlyAmount: sin aviso", async () => {
+    const shop = await makeShop("authorized", null);
+    mockedGetPayment.mockResolvedValueOnce(payment({ transaction_amount: 15000, preapprovalId: shop.mpPreapprovalId }));
+    await expect(handleMpNotification({ type: "payment", dataId: "111222333" })).resolves.toBe("processed");
+    expect(mockedRecordPayment).toHaveBeenCalledTimes(1);
+    expect(amountWarns()).toHaveLength(0);
   });
 });
 

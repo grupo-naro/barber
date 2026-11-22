@@ -23,6 +23,8 @@ export function ManualPaymentForm({
 }) {
   const [state, action, pending] = useActionState<ActionResult | undefined, FormData>(registerManualPayment, undefined);
   const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
+  // Tras un error, lo que se envió (React resetea el form después de la action, también si falla).
+  const sent = state && !state.ok ? state.values : undefined;
 
   return (
     <form action={action} className="flex flex-col gap-3" noValidate>
@@ -33,7 +35,7 @@ export function ManualPaymentForm({
           name="amount"
           label="Monto (ARS)"
           inputMode="decimal"
-          defaultValue={defaultAmount}
+          defaultValue={sent?.amount ?? defaultAmount}
           placeholder="15000"
           required
           error={errors.amount}
@@ -43,17 +45,20 @@ export function ManualPaymentForm({
           name="paidAt"
           label="Fecha de pago"
           type="date"
-          defaultValue={today}
+          defaultValue={sent?.paidAt ?? today}
           max={today}
           required
           error={errors.paidAt}
         />
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="manual-months">Meses que cubre</Label>
+          {/* React no aplica un `defaultValue` nuevo a un `<select>` ya montado (el reset del form volvería a "1"):
+              la `key` lo remonta con lo enviado. */}
           <select
+            key={sent?.months || "1"}
             id="manual-months"
             name="months"
-            defaultValue="1"
+            defaultValue={sent?.months || "1"}
             aria-invalid={errors.months ? true : undefined}
             aria-describedby={errors.months ? "manual-months-error" : undefined}
             className={`${nativeFieldClass} h-9`}
@@ -72,6 +77,7 @@ export function ManualPaymentForm({
         name="note"
         label="Nota (opcional)"
         maxLength={500}
+        defaultValue={sent?.note ?? ""}
         placeholder="Transferencia desde la cuenta de…"
         error={errors.note}
       />
