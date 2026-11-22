@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T03:26:24.349872+00:00",
+  "updated": "2026-11-22T13:14:45.093977+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -777,6 +777,47 @@
       "builder": "builder-026-mercadopago-webhook",
       "decision": "APPROVE (humano)",
       "note": "mergeado a main (smoke test MP pendiente antes de producción)"
+    },
+    {
+      "id": "027-admin-billing",
+      "title": "Gestión del cobro en el admin",
+      "branch": "factory/027-admin-billing",
+      "worktree": ".worktrees/027-admin-billing",
+      "scope": [
+        "src/lib/admin-billing.ts",
+        "src/lib/admin-billing.test.ts",
+        "src/server/actions/admin-billing.ts",
+        "src/server/actions/admin-billing.test.ts",
+        "src/server/actions/admin.ts",
+        "src/server/actions/admin.test.ts",
+        "src/server/queries/admin.ts",
+        "src/app/admin/(panel)/layout.tsx",
+        "src/app/admin/(panel)/page.tsx",
+        "src/app/admin/(panel)/billing-badge.tsx",
+        "src/app/admin/(panel)/barbershops/[id]/page.tsx",
+        "src/app/admin/(panel)/barbershops/[id]/edit-form.tsx",
+        "src/app/admin/(panel)/barbershops/[id]/status-form.tsx",
+        "src/app/admin/(panel)/barbershops/[id]/billing/**",
+        "src/app/admin/(panel)/settings/**"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "024-billing-core",
+        "026-mercadopago-webhook"
+      ],
+      "builder": "builder-027-admin-billing",
+      "decision": "APPROVE",
+      "note": "mergeado a main"
     }
   ]
 }
