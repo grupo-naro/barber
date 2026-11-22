@@ -52,7 +52,10 @@ export function ManualPaymentForm({
         />
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="manual-months">Meses que cubre</Label>
+          {/* React no aplica un `defaultValue` nuevo a un `<select>` ya montado (el reset del form volvería a "1"):
+              la `key` lo remonta con lo enviado. */}
           <select
+            key={sent?.months || "1"}
             id="manual-months"
             name="months"
             defaultValue={sent?.months || "1"}
