@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { billingState, type BillingState } from "@/lib/billing";
 import { db } from "@/lib/db";
 import {
   isSessionRevoked,
@@ -28,7 +29,14 @@ export type Session = {
     timezone: string;
     status: "ACTIVE" | "SUSPENDED";
     plan: "FREE" | "BASIC" | "PRO";
+    /** "Pagado hasta" cuando `billingEnabled`; si no, el vencimiento informativo del plan. */
     planExpiresAt: Date | null;
+    billingEnabled: boolean;
+    mpStatus: string | null;
+    mpInitPoint: string | null;
+    payerEmail: string | null;
+    /** Estado de cobro calculado en cada request (`billingState(..., new Date())`). No invalida la sesión. */
+    billingState: BillingState;
   };
 };
 
@@ -73,7 +81,19 @@ const lookupSession = cache(async (): Promise<SessionLookup> => {
       barbershopId: true,
       passwordChangedAt: true,
       barbershop: {
-        select: { id: true, name: true, slug: true, timezone: true, status: true, plan: true, planExpiresAt: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          timezone: true,
+          status: true,
+          plan: true,
+          planExpiresAt: true,
+          billingEnabled: true,
+          mpStatus: true,
+          mpInitPoint: true,
+          payerEmail: true,
+        },
       },
     },
   });
@@ -91,7 +111,15 @@ const lookupSession = cache(async (): Promise<SessionLookup> => {
     // El rol vigente es el de la DB (si cambió desde el login, manda la DB).
     role: user.role,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
-    barbershop: user.barbershop,
+    // El cobro se mira después de `SUSPENDED` y no rechaza la sesión: con el panel bloqueado el usuario entra
+    // y ve la pantalla de pago (el corte lo hacen el layout del panel y `requirePanelAccess` en las actions).
+    barbershop: {
+      ...user.barbershop,
+      billingState: billingState(
+        { billingEnabled: user.barbershop.billingEnabled, paidUntil: user.barbershop.planExpiresAt },
+        new Date(),
+      ),
+    },
   };
   return { session, reason: null };
 });
