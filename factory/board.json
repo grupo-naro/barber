@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T03:25:02.725257+00:00",
+  "updated": "2026-11-22T03:26:24.349872+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -725,7 +725,7 @@
         "src/server/actions/barbershop.ts",
         "src/server/actions/landing.ts"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 1,
       "reviews": {
@@ -740,8 +740,8 @@
         "024-billing-core"
       ],
       "builder": "builder-025-billing-access",
-      "decision": "ESCALATE",
-      "note": "modifica src/lib/auth.ts: requiere aprobación humana (todo lo demás OK)"
+      "decision": "APPROVE (humano)",
+      "note": "mergeado a main"
     },
     {
       "id": "026-mercadopago-webhook",
