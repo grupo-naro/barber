@@ -38,7 +38,7 @@ export function CopySubscriptionLink({ url, payerEmail }: { url: string; payerEm
       {payerEmail ? (
         <p className="rounded-lg border bg-background p-2.5 text-sm text-foreground">
           El dueño tiene que pagar con la cuenta de Mercado Pago de{" "}
-          <span className="font-medium break-all">{payerEmail}</span>. Con otra cuenta, Mercado Pago rechaza el pago.
+          <span className="font-medium break-all">{payerEmail}</span>. Si entra con otra cuenta, Mercado Pago no le va a dejar suscribirse.
         </p>
       ) : null}
       <p
