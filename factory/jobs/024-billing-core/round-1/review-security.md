@@ -1,0 +1,9 @@
+VERDICT: PASS
+
+## Hallazgos
+- [nit] `src/server/billing.ts:83-88` y `:54-57`: el chequeo de idempotencia busca `mpPaymentId` de forma global, sin filtrar por `barbershopId`. Si un `mpPaymentId` ya registrado en la barbería A llega con `barbershopId` B, la función devuelve `created: false` sin avisar. En el fallback de `currentPaidUntil` puede devolver además el `coversUntil` de un pago de A. Hoy no hay ningún llamador y el id de MP es único en todo MP, así que no se puede explotar. → Seleccioná también `barbershopId` en el `findUnique`. Si no coincide con `input.barbershopId`, lanzá un error o loguealo como anomalía en vez de responder como pago repetido. Conviene dejarlo resuelto antes del webhook (026).
+- [nit] `src/server/billing.ts:42,44,73,58`: los mensajes de error incluyen el `barbershopId` y el monto crudo. Sirven para logs internos, pero los jobs 025/026/027 no deben mostrarlos tal cual al cliente ni en la respuesta del webhook. → Que los llamadores los traduzcan a un mensaje genérico. Se puede dejar anotado en el plan.
+- [nit] `src/server/billing.ts`: no importa `server-only`. La omisión es a propósito, para poder llamarlo desde scripts y tests como `src/server/records.ts`, y no está en `src/server/actions/` ni tiene `"use server"`, así que no queda expuesto como acción. → Cuando 025/027 lo usen, envolverlo en acciones de admin con Zod + sesión de admin y nunca reexportarlo desde un archivo `"use server"`.
+
+## Revisado
+Schema y migración (`billingEnabled` default false, `@unique` en `mpPaymentId`/`mpPreapprovalId`, cascade), `recordPayment` (transacción con `FOR UPDATE`, `Decimal` desde string, P2002 → sin extender, no expuesto como server action) y los `select` explícitos de las queries públicas y de `auth.ts`: no hay fuga de `payerEmail`, `monthlyAmount` ni `mpInitPoint`.

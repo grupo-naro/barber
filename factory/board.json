@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T02:07:15.850Z",
+  "updated": "2026-11-22T03:03:55.611627+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -671,6 +671,35 @@
       "builder": "builder-023-landing-colors",
       "decision": "APPROVE",
       "note": "mergeado a main por aprobación humana; migración aplicada"
+    },
+    {
+      "id": "024-billing-core",
+      "title": "Modelo de cobro y lógica de suscripción",
+      "branch": "factory/024-billing-core",
+      "worktree": ".worktrees/024-billing-core",
+      "scope": [
+        "prisma/schema.prisma",
+        "prisma/migrations/**",
+        "src/lib/billing.ts",
+        "src/lib/billing.test.ts",
+        "src/server/billing.ts",
+        "src/server/billing.test.ts"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [],
+      "builder": "builder-024-billing-core",
+      "decision": "ESCALATE",
+      "note": "toca schema + migración: requiere aprobación humana (todo lo demás OK)"
     }
   ]
 }
