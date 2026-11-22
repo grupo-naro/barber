@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T03:21:01.723812+00:00",
+  "updated": "2026-11-22T03:22:41.427572+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -755,7 +755,7 @@
         "src/app/api/webhooks/mercadopago/**",
         ".env.example"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 1,
       "reviews": {
@@ -770,8 +770,8 @@
         "024-billing-core"
       ],
       "builder": "builder-026-mercadopago-webhook",
-      "decision": "ESCALATE",
-      "note": "agrega env vars con secretos (MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET): requiere aprobación humana; smoke test MP pendiente"
+      "decision": "APPROVE (humano)",
+      "note": "mergeado a main (smoke test MP pendiente antes de producción)"
     }
   ]
 }
