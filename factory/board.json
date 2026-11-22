@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T01:46:28.166Z",
+  "updated": "2026-11-22T02:07:15.850Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -656,7 +656,7 @@
         "src/app/(dashboard)/dashboard/settings/landing-form.tsx",
         "src/app/(dashboard)/dashboard/settings/brand-colors-form.tsx"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 1,
       "reviews": {
@@ -669,8 +669,8 @@
       "blocked_by": [],
       "depends_on": [],
       "builder": "builder-023-landing-colors",
-      "decision": "ESCALATE",
-      "note": "Schema + migración (brandPrimary/brandSecondary): requiere aprobación humana"
+      "decision": "APPROVE",
+      "note": "mergeado a main por aprobación humana; migración aplicada"
     }
   ]
 }
