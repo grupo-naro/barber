@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T13:14:45.093977+00:00",
+  "updated": "2026-11-22T17:15:52.606215+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -816,6 +816,42 @@
         "026-mercadopago-webhook"
       ],
       "builder": "builder-027-admin-billing",
+      "decision": "APPROVE",
+      "note": "mergeado a main"
+    },
+    {
+      "id": "028-billing-hardening",
+      "title": "Endurecimiento del cobro (seguimientos de reviews)",
+      "branch": "factory/028-billing-hardening",
+      "worktree": ".worktrees/028-billing-hardening",
+      "scope": [
+        "src/server/actions/admin-billing.ts",
+        "src/server/actions/admin-billing.test.ts",
+        "src/lib/admin-billing.ts",
+        "src/lib/barbershop-settings.ts",
+        "src/server/mercadopago-webhook.ts",
+        "src/server/mercadopago-webhook.test.ts",
+        "src/app/admin/(panel)/barbershops/[id]/billing/link-form.tsx",
+        "src/app/admin/(panel)/barbershops/[id]/billing/amount-form.tsx",
+        "src/app/admin/(panel)/barbershops/[id]/billing/manual-payment-form.tsx",
+        "src/app/(dashboard)/billing-gate.tsx",
+        "src/app/(dashboard)/copy-value-button.tsx"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "027-admin-billing"
+      ],
+      "builder": "builder-028-billing-hardening",
       "decision": "APPROVE",
       "note": "mergeado a main"
     }
