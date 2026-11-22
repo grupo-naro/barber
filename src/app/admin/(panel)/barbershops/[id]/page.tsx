@@ -4,12 +4,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { businessDate } from "@/lib/time";
-import { getBarbershopForAdmin } from "@/server/queries/admin";
+import { getBarbershopForAdmin, listSubscriptionPayments } from "@/server/queries/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "../../format";
 import { PlanBadge } from "../../plan-badge";
 import { BarbershopStatusBadge } from "../../status-badge";
 import { AccessLinkForm } from "./access-link-form";
+import { SubscriptionSection } from "./billing/subscription-section";
 import { EditBarbershopForm } from "./edit-form";
 import { StatusForm } from "./status-form";
 
@@ -23,6 +24,7 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
   const { id } = await params;
   const shop = await getBarbershopForAdmin(id);
   if (!shop) notFound();
+  const payments = await listSubscriptionPayments(shop.id);
   const now = new Date();
 
   return (
@@ -58,6 +60,7 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
           <CardContent>
             <EditBarbershopForm
               hasOwner={shop.owner !== null}
+              billingEnabled={shop.billingEnabled}
               values={{
                 id: shop.id,
                 name: shop.name,
@@ -96,10 +99,12 @@ async function BarbershopDetail({ params }: { params: PageProps<"/admin/barbersh
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <StatusForm id={shop.id} status={shop.status} />
+              <StatusForm id={shop.id} status={shop.status} mpStatus={shop.mpStatus} />
             </CardContent>
           </Card>
         </div>
+
+        <SubscriptionSection shop={shop} payments={payments} now={now} />
       </div>
     </>
   );

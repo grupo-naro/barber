@@ -432,8 +432,15 @@ describe("updatePlatformSettings", () => {
       expect(invalid.ok).toBe(false);
     } finally {
       if (before) {
-        const { id: _id, updatedAt: _u, ...rest } = before;
-        await db.platformSettings.update({ where: { id: "singleton" }, data: rest });
+        await db.platformSettings.update({
+          where: { id: "singleton" },
+          data: {
+            transferAlias: before.transferAlias,
+            transferCbu: before.transferCbu,
+            transferHolder: before.transferHolder,
+            contactWhatsapp: before.contactWhatsapp,
+          },
+        });
       } else {
         await db.platformSettings.deleteMany({ where: { id: "singleton" } });
       }

@@ -19,7 +19,16 @@ export type EditBarbershopValues = {
   planExpiresAt: string;
 };
 
-export function EditBarbershopForm({ values, hasOwner }: { values: EditBarbershopValues; hasOwner: boolean }) {
+export function EditBarbershopForm({
+  values,
+  hasOwner,
+  billingEnabled,
+}: {
+  values: EditBarbershopValues;
+  hasOwner: boolean;
+  /** Con el cobro activado, "pagado hasta" solo cambia con pagos: el campo no se muestra (y el servidor lo ignora). */
+  billingEnabled: boolean;
+}) {
   const [state, action, pending] = useActionState<ActionResult | undefined, FormData>(updateBarbershop, undefined);
   const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
 
@@ -69,15 +78,21 @@ export function EditBarbershopForm({ values, hasOwner }: { values: EditBarbersho
         </select>
         <FieldError id="plan-error" message={errors.plan} />
       </div>
-      <AdminField
-        id="planExpiresAt"
-        name="planExpiresAt"
-        label="Vencimiento del plan"
-        type="date"
-        defaultValue={values.planExpiresAt}
-        error={errors.planExpiresAt}
-        hint="Opcional: dejalo vacío para que no venza. Solo le muestra un aviso al dueño."
-      />
+      {billingEnabled ? (
+        <p className="self-end text-sm text-muted-foreground">
+          El vencimiento (&quot;pagado hasta&quot;) lo mueven los pagos: registrá un pago manual en Suscripción.
+        </p>
+      ) : (
+        <AdminField
+          id="planExpiresAt"
+          name="planExpiresAt"
+          label="Vencimiento del plan"
+          type="date"
+          defaultValue={values.planExpiresAt}
+          error={errors.planExpiresAt}
+          hint="Opcional: dejalo vacío para que no venza. Solo le muestra un aviso al dueño."
+        />
+      )}
       <div className="flex flex-col gap-2 sm:col-span-2">
         <Button type="submit" className="w-fit" disabled={pending || !hasOwner}>
           {pending ? "Guardando…" : "Guardar cambios"}

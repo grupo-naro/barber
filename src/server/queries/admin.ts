@@ -12,6 +12,7 @@ export type AdminBarbershopRow = {
   status: BarbershopStatusValue;
   plan: PlanValue;
   planExpiresAt: Date | null;
+  billingEnabled: boolean;
   timezone: string;
   activeBarbers: number;
   appointmentsThisMonth: number;
@@ -46,7 +47,16 @@ export async function listBarbershopsWithMetrics(q: string, now: Date = new Date
       ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }] }
       : undefined,
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, slug: true, status: true, plan: true, planExpiresAt: true, timezone: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      plan: true,
+      planExpiresAt: true,
+      billingEnabled: true,
+      timezone: true,
+    },
   });
   if (shops.length === 0) return [];
 
@@ -100,7 +110,26 @@ export type AdminBarbershopDetail = {
   planExpiresAt: Date | null;
   timezone: string;
   createdAt: Date;
+  billingEnabled: boolean;
+  /** Monto mensual como string decimal (de `Decimal`), o `null`. */
+  monthlyAmount: string | null;
+  mpPreapprovalId: string | null;
+  mpInitPoint: string | null;
+  mpStatus: string | null;
+  payerEmail: string | null;
   owner: { id: string; name: string; email: string; hasPassword: boolean; active: boolean } | null;
+};
+
+export type AdminSubscriptionPayment = {
+  id: string;
+  source: "MERCADOPAGO" | "MANUAL";
+  /** String decimal (de `Decimal`). */
+  amount: string;
+  paidAt: Date;
+  coversUntil: Date;
+  note: string | null;
+  suspectedDuplicate: boolean;
+  duplicateReviewedAt: Date | null;
 };
 
 /** Detalle de una barbería con su dueño (el OWNER más antiguo). `null` si el id no existe. */
@@ -117,6 +146,12 @@ export async function getBarbershopForAdmin(id: string): Promise<AdminBarbershop
       planExpiresAt: true,
       timezone: true,
       createdAt: true,
+      billingEnabled: true,
+      monthlyAmount: true,
+      mpPreapprovalId: true,
+      mpInitPoint: true,
+      mpStatus: true,
+      payerEmail: true,
       users: {
         where: { role: "OWNER" },
         orderBy: { createdAt: "asc" },
@@ -126,12 +161,33 @@ export async function getBarbershopForAdmin(id: string): Promise<AdminBarbershop
     },
   });
   if (!shop) return null;
-  const { users, ...rest } = shop;
+  const { users, monthlyAmount, ...rest } = shop;
   const owner = users[0];
   return {
     ...rest,
+    monthlyAmount: monthlyAmount ? monthlyAmount.toString() : null,
     owner: owner
       ? { id: owner.id, name: owner.name, email: owner.email, hasPassword: owner.passwordHash !== null, active: owner.active }
       : null,
   };
+}
+
+/** Historial de pagos de la suscripción de una barbería, del más reciente al más viejo (hasta 100). */
+export async function listSubscriptionPayments(barbershopId: string): Promise<AdminSubscriptionPayment[]> {
+  const rows = await db.subscriptionPayment.findMany({
+    where: { barbershopId },
+    orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+    take: 100,
+    select: {
+      id: true,
+      source: true,
+      amount: true,
+      paidAt: true,
+      coversUntil: true,
+      note: true,
+      suspectedDuplicate: true,
+      duplicateReviewedAt: true,
+    },
+  });
+  return rows.map((row) => ({ ...row, amount: row.amount.toString() }));
 }

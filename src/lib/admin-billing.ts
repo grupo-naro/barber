@@ -69,8 +69,6 @@ export const whatsappField = optionalText(30, "Puede tener hasta 30 caracteres")
   "Usá solo números, espacios, + y -",
 );
 
-const MP_STATUSES = ["pending", "authorized", "paused", "cancelled"] as const;
-
 // ---------------------------------------------------------------------------------------------------------------
 // Esquemas de las acciones
 
@@ -152,7 +150,7 @@ export const BILLING_STATE_LABELS: Record<BillingState, string> = {
 
 export function mpStatusLabel(status: string | null): string {
   if (status === null) return "Sin suscripción";
-  switch (status as (typeof MP_STATUSES)[number]) {
+  switch (status) {
     case "pending":
       return "Pendiente (no autorizada)";
     case "authorized":
