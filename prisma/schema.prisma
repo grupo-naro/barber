@@ -58,25 +58,29 @@ enum PaymentMethod {
 }
 
 model Barbershop {
-  id            String           @id @default(cuid())
-  slug          String           @unique
-  name          String
-  logoUrl       String?
-  description   String?
-  address       String?
-  phone         String?
-  whatsapp      String?
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  name           String
+  logoUrl        String?
+  description    String?
+  address        String?
+  phone          String?
+  whatsapp       String?
   /// Key relativa (`<barbershopId>/<archivo>`) de la portada en el storage de medios; URL pública `/media/<key>`.
-  coverImageKey String?
+  coverImageKey  String?
   /// Handle de Instagram normalizado, sin `@`.
-  instagram     String?
-  googleMapsUrl String?
-  timezone      String           @default("America/Argentina/Buenos_Aires")
-  status        BarbershopStatus @default(ACTIVE)
-  plan          Plan             @default(FREE)
-  planExpiresAt DateTime?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  instagram      String?
+  googleMapsUrl  String?
+  /// Color principal de la landing (`#rrggbb` validado; `null` = azul original). Se guarda lo que eligió el dueño, sin ajustar.
+  brandPrimary   String?
+  /// Color secundario de la landing (`#rrggbb` validado; `null` = rojo original).
+  brandSecondary String?
+  timezone       String           @default("America/Argentina/Buenos_Aires")
+  status         BarbershopStatus @default(ACTIVE)
+  plan           Plan             @default(FREE)
+  planExpiresAt  DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   openingHours   OpeningHours[]
   users          User[]
