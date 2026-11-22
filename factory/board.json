@@ -6,7 +6,7 @@
   "active_slots": [
     {
       "slot": 1,
-      "job": null,
+      "job": "024-billing-core",
       "port": 3001
     },
     {
@@ -15,8 +15,8 @@
       "port": 3002
     }
   ],
-  "merge_lock": null,
-  "updated": "2026-11-22T03:03:55.611627+00:00",
+  "merge_lock": "024-billing-core",
+  "updated": "2026-11-22T03:05:50.517724+00:00",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -686,7 +686,7 @@
         "src/server/billing.test.ts"
       ],
       "stage": "needs-human",
-      "slot": null,
+      "slot": 1,
       "round": 1,
       "reviews": {
         "security": "PASS",
@@ -698,8 +698,8 @@
       "blocked_by": [],
       "depends_on": [],
       "builder": "builder-024-billing-core",
-      "decision": "ESCALATE",
-      "note": "toca schema + migración: requiere aprobación humana (todo lo demás OK)"
+      "decision": "APPROVE (humano)",
+      "note": "mergeando"
     }
   ]
 }
