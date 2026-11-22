@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { requirePanelAccess } from "@/lib/billing-access";
 import { isValidDate } from "@/lib/slots";
 import { CLOSE_ERRORS, closeCashDay } from "@/server/queries/cash";
 
@@ -33,6 +34,7 @@ export async function closeCashRegister(_prev: CloseCashState, formData: FormDat
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos.", nonce };
 
   const session = await requireRole("OWNER");
+  requirePanelAccess(session);
   const result = await closeCashDay({
     barbershopId: session.barbershopId,
     userId: session.userId,

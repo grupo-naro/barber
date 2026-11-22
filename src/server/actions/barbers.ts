@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
+import { requirePanelAccess } from "@/lib/billing-access";
 import { firstFieldErrors, type ActionResult } from "@/lib/barbershop-settings";
 import { createBarberSchema, regenerateInvitationSchema, updateBarberSchema } from "@/lib/barbers";
 import {
@@ -32,7 +33,10 @@ export type InviteResult =
 
 async function ownerSession(): Promise<Session | null> {
   const session = await getSession();
-  return session && session.role === "OWNER" ? session : null;
+  if (!session || session.role !== "OWNER") return null;
+  // Panel bloqueado por cobro → `/dashboard` (pantalla de pago), antes de cualquier lectura o escritura.
+  requirePanelAccess(session);
+  return session;
 }
 
 function text(formData: FormData, key: string): string | null {

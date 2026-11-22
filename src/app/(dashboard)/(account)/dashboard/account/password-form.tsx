@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/barbershop-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FieldError, FormStatus } from "../settings/form-ui";
+import { FieldError, FormStatus } from "@/app/(dashboard)/dashboard/settings/form-ui";
 
 const FIELDS = [
   { name: "currentPassword", label: "Contraseña actual", autoComplete: "current-password" },

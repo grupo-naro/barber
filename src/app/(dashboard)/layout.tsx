@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { CircleUser, LogOut } from "lucide-react";
-import { requireSession } from "@/lib/auth";
+import { requireSession, type Session } from "@/lib/auth";
+import { graceBannerMessage } from "@/lib/billing-access";
 import { logout } from "@/server/actions/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -12,14 +13,27 @@ import { cn } from "@/lib/utils";
 
 const roleLabel = { OWNER: "Dueño/a", BARBER: "Barbero/a" } as const;
 
+/**
+ * Aviso del header, solo para el dueño y con la fecha en la timezone de la barbería. No bloquea nada.
+ * - `GRACE`: no se pudo cobrar la suscripción; fecha límite = "pagado hasta" + 12 días.
+ * - `EXEMPT` (cobro desactivado): el aviso informativo del plan de siempre (`planBanner`).
+ * - `PAID`: sin aviso. Con el panel bloqueado, el aviso es la pantalla de pago (`BillingGate`).
+ */
+function headerBanner(session: Session): { message: string; urgent: boolean } | null {
+  if (session.role !== "OWNER") return null;
+  const { billingState, planExpiresAt, timezone } = session.barbershop;
+  if (billingState === "GRACE" && planExpiresAt) {
+    return { message: graceBannerMessage(planExpiresAt, timezone), urgent: true };
+  }
+  if (billingState !== "EXEMPT") return null;
+  const plan = planBanner(planExpiresAt, new Date(), timezone);
+  const message = planBannerMessage(plan);
+  return message ? { message, urgent: plan.kind === "expired" } : null;
+}
+
 async function SessionHeader() {
   const session = await requireSession();
-  // Aviso del plan solo para el dueño, con la fecha en la timezone de la barbería. No bloquea nada.
-  const banner =
-    session.role === "OWNER"
-      ? planBanner(session.barbershop.planExpiresAt, new Date(), session.barbershop.timezone)
-      : ({ kind: "none" } as const);
-  const bannerMessage = planBannerMessage(banner);
+  const banner = headerBanner(session);
   return (
     <>
       <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
@@ -47,15 +61,15 @@ async function SessionHeader() {
           </form>
         </div>
       </header>
-      {bannerMessage ? (
+      {banner ? (
         <p
           role="status"
           className={cn(
             "border-b px-4 py-2 text-center text-sm",
-            banner.kind === "expired" ? "bg-destructive/10 text-destructive" : "bg-muted text-foreground",
+            banner.urgent ? "bg-destructive/10 text-destructive" : "bg-muted text-foreground",
           )}
         >
-          {bannerMessage}
+          {banner.message}
         </p>
       ) : null}
       {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
