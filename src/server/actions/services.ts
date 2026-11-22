@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { requirePanelAccess } from "@/lib/billing-access";
 import { db } from "@/lib/db";
 import {
   PRICE_MODES,
@@ -121,6 +122,7 @@ export async function createService(_prev: ServiceFormState, formData: FormData)
     return { ok: false, message: "Revisá los campos marcados.", fieldErrors: fieldErrorsOf(parsed.error), values, nonce };
   }
   const session = await requireRole("OWNER");
+  requirePanelAccess(session);
 
   await db.service.create({ data: { ...parsed.data, barbershopId: session.barbershopId } });
   revalidateServices(session.barbershop.slug);
@@ -136,6 +138,7 @@ export async function updateService(_prev: ServiceFormState, formData: FormData)
     return { ok: false, message: "Revisá los campos marcados.", fieldErrors: fieldErrorsOf(parsed.error), values, nonce };
   }
   const session = await requireRole("OWNER");
+  requirePanelAccess(session);
 
   const { count } = await db.service.updateMany({
     where: { id: id.data, barbershopId: session.barbershopId },
@@ -154,6 +157,7 @@ export async function setServiceActive(id: string, active: boolean): Promise<Act
   const parsed = setActiveSchema.safeParse({ id, active });
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
   const session = await requireRole("OWNER");
+  requirePanelAccess(session);
 
   const { count } = await db.service.updateMany({
     where: { id: parsed.data.id, barbershopId: session.barbershopId },
@@ -200,6 +204,7 @@ export async function applyBulkPriceUpdate(_prev: BulkPriceState, formData: Form
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos.", nonce };
   }
   const session = await requireRole("OWNER");
+  requirePanelAccess(session);
   const { mode, value, rounding, scope } = parsed.data;
   const ids = [...new Set(parsed.data.serviceIds)];
 

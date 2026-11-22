@@ -4,6 +4,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { computeHourlySlots, isOpenDay, isValidDate, weekdayOf } from "@/lib/slots";
+import { publicBarbershopWhere } from "@/server/queries/public-barbershop-where";
 
 type Client = Prisma.TransactionClient | typeof db;
 
@@ -28,11 +29,12 @@ export type PublicService = {
   durationMinutes: number;
 };
 
-// Solo barberías ACTIVE: una SUSPENDED no se muestra ni recibe reservas (como si no existiera).
+// Solo barberías publicables (`publicBarbershopWhere`): una SUSPENDED o sin primer pago no se muestra ni recibe
+// reservas (como si no existiera). Una con el cobro vencido (`BLOCKED`) sigue publicada y reservando.
 
 export async function getPublicBarbershop(slug: string): Promise<PublicBarbershop | null> {
   return db.barbershop.findUnique({
-    where: { slug, status: "ACTIVE" },
+    where: { slug, AND: [publicBarbershopWhere] },
     select: {
       slug: true,
       name: true,
@@ -46,10 +48,10 @@ export async function getPublicBarbershop(slug: string): Promise<PublicBarbersho
   });
 }
 
-/** Barbería ACTIVE por slug con su id, sólo para uso interno del servidor (suspendida → `null`). */
+/** Barbería publicable por slug con su id, sólo para uso interno del servidor (no publicable → `null`). */
 export async function resolveBarbershop(slug: string, client: Client = db) {
   return client.barbershop.findUnique({
-    where: { slug, status: "ACTIVE" },
+    where: { slug, AND: [publicBarbershopWhere] },
     select: { id: true, timezone: true },
   });
 }
@@ -65,7 +67,7 @@ const serviceSelect = {
 /** Servicios visibles online de la barbería del slug, en orden de catálogo. */
 export async function getOnlineServices(slug: string): Promise<PublicService[]> {
   const services = await db.service.findMany({
-    where: { barbershop: { slug, status: "ACTIVE" }, active: true, showOnline: true },
+    where: { barbershop: { slug, AND: [publicBarbershopWhere] }, active: true, showOnline: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: serviceSelect,
   });

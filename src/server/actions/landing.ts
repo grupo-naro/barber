@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
+import { requirePanelAccess } from "@/lib/billing-access";
 import { firstFieldErrors, type ActionResult } from "@/lib/barbershop-settings";
 import { brandColorsSchema } from "@/lib/brand-colors";
 import { galleryAltSchema, galleryIdSchema, galleryMoveSchema, socialLinksSchema } from "@/lib/landing";
@@ -24,7 +25,10 @@ const INVALID = "Revisá los campos marcados.";
 /** Sesión de un OWNER activo o `null`. */
 async function ownerSession(): Promise<Session | null> {
   const session = await getSession();
-  return session && session.role === "OWNER" ? session : null;
+  if (!session || session.role !== "OWNER") return null;
+  // Panel bloqueado por cobro → `/dashboard` (pantalla de pago), antes de cualquier lectura o escritura.
+  requirePanelAccess(session);
+  return session;
 }
 
 function text(formData: FormData, key: string): string | null {

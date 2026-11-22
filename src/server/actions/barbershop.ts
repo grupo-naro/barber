@@ -4,6 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
+import { requirePanelAccess } from "@/lib/billing-access";
 import {
   MAX_RANGES_PER_DAY,
   firstFieldErrors,
@@ -25,7 +26,10 @@ const INVALID = "Revisá los campos marcados.";
 /** Sesión de un OWNER activo o `null`. Devuelve error en vez de redirigir para que el form lo muestre. */
 async function ownerSession(): Promise<Session | null> {
   const session = await getSession();
-  return session && session.role === "OWNER" ? session : null;
+  if (!session || session.role !== "OWNER") return null;
+  // Panel bloqueado por cobro → `/dashboard` (pantalla de pago), antes de cualquier lectura o escritura.
+  requirePanelAccess(session);
+  return session;
 }
 
 function text(formData: FormData, key: string): string | null {

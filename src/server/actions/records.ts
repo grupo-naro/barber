@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireSession, type Session } from "@/lib/auth";
+import { requirePanelAccess } from "@/lib/billing-access";
 import { db } from "@/lib/db";
 import { CUSTOMER_NOTES_MAX, PAYMENT_METHODS, normalizeNotes, normalizePhone } from "@/lib/records";
 import {
@@ -91,6 +92,7 @@ export async function completeAppointment(prev: RecordFormState, formData: FormD
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error), nonce, resetKey };
   const session = await requireSession();
+  requirePanelAccess(session);
 
   const result = await completeAppointmentRecord(contextOf(session), parsed.data);
   if (!result.ok) return { ok: false, error: result.error, nonce, resetKey };
@@ -105,6 +107,7 @@ export async function setAppointmentStatus(id: string, status: "NO_SHOW" | "CANC
   const parsed = statusSchema.safeParse({ id, status });
   if (!parsed.success) return { ok: false, error: "Datos inválidos." };
   const session = await requireSession();
+  requirePanelAccess(session);
 
   const result = await setTodayAppointmentStatus(contextOf(session), parsed.data.id, parsed.data.status);
   if (!result.ok) return result;
@@ -147,6 +150,7 @@ export async function createWalkIn(prev: RecordFormState, formData: FormData): P
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error), nonce, resetKey };
   const session = await requireSession();
+  requirePanelAccess(session);
 
   const result = await createWalkInRecord(contextOf(session), {
     barberId: parsed.data.barberId || null,
@@ -164,6 +168,7 @@ export async function lookupCustomer(phone: string): Promise<CustomerLookup> {
   const parsed = phoneSchema.safeParse(phone);
   if (!parsed.success) return { found: false };
   const session = await requireSession();
+  requirePanelAccess(session);
   const customer = await db.customer.findUnique({
     where: { barbershopId_phone: { barbershopId: session.barbershopId, phone: parsed.data } },
     select: { id: true, name: true, notes: true },
@@ -189,6 +194,7 @@ export async function updateCustomerNotes(_prev: NotesFormState, formData: FormD
   const parsed = notesSchema.safeParse({ customerId: text(formData, "customerId"), notes: text(formData, "notes") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error), nonce };
   const session = await requireSession();
+  requirePanelAccess(session);
 
   const { count } = await db.customer.updateMany({
     where: { id: parsed.data.customerId, barbershopId: session.barbershopId },
