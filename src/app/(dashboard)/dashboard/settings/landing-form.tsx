@@ -20,6 +20,7 @@ import type { LandingSettings, PublicGalleryImage } from "@/server/queries/landi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandColorsForm } from "./brand-colors-form";
 import { FieldError, FormStatus } from "./form-ui";
 import { resizeImage } from "./resize-image";
 
@@ -75,6 +76,7 @@ export function LandingForm({ landing }: { landing: LandingSettings }) {
       />
       <Gallery images={landing.gallery} />
       <SocialForm landing={landing} />
+      <BrandColorsForm primary={landing.brandPrimary} secondary={landing.brandSecondary} />
     </div>
   );
 }

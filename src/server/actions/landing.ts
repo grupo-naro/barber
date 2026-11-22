@@ -4,12 +4,13 @@ import { revalidatePath, updateTag } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession, type Session } from "@/lib/auth";
 import { firstFieldErrors, type ActionResult } from "@/lib/barbershop-settings";
+import { brandColorsSchema } from "@/lib/brand-colors";
 import { galleryAltSchema, galleryIdSchema, galleryMoveSchema, socialLinksSchema } from "@/lib/landing";
 import { MAX_GALLERY_IMAGES, MAX_UPLOAD_BYTES, detectImageType, mediaKeyFromUrl, mediaUrl, type ImageType } from "@/lib/media";
 import { deleteImageQuietly, isKeyOfShop, saveImage } from "@/server/media-storage";
 import { barbershopBrandingTag } from "@/app/[slug]/data";
 
-// Mutaciones del contenido de la landing pública (logo, portada, galería, redes).
+// Mutaciones del contenido de la landing pública (logo, portada, galería, redes, colores).
 // Orden fijo: validar la entrada (archivo o Zod) → sesión y rol OWNER → query/disco con el
 // `barbershopId` de la SESIÓN (nunca de un campo del formulario). Sin sesión de OWNER no se
 // escribe nada en disco.
@@ -296,5 +297,38 @@ export async function updateSocialLinks(_prev: ActionResult | undefined, formDat
     ok: true,
     message: instagram ? `Redes guardadas. Instagram: @${instagram}.` : "Redes guardadas.",
     values: { instagram: instagram ? `@${instagram}` : "", googleMapsUrl: googleMapsUrl ?? "" },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Colores
+// ---------------------------------------------------------------------------
+
+/**
+ * Guarda los colores de marca de la landing. Se guarda lo que eligió el dueño ya validado y
+ * normalizado (`#rrggbb` en minúscula o `null`); el ajuste de contraste se calcula al mostrar.
+ * Con `reset=1` (botón "Restablecer colores originales") guarda los dos en `null`.
+ */
+export async function updateBrandColors(_prev: ActionResult | undefined, formData: FormData): Promise<ActionResult> {
+  const reset = text(formData, "reset") === "1";
+  const parsed = brandColorsSchema.safeParse(
+    reset ? { primary: null, secondary: null } : { primary: text(formData, "primary"), secondary: text(formData, "secondary") },
+  );
+  if (!parsed.success) return { ok: false, error: INVALID, fieldErrors: firstFieldErrors(parsed.error) };
+
+  const session = await ownerSession();
+  if (!session) return FORBIDDEN;
+
+  const { primary, secondary } = parsed.data;
+  await db.barbershop.update({
+    where: { id: session.barbershopId },
+    data: { brandPrimary: primary, brandSecondary: secondary },
+  });
+
+  invalidate(session);
+  return {
+    ok: true,
+    message: reset ? "Volviste a los colores originales." : "Colores guardados.",
+    values: { primary: primary ?? "", secondary: secondary ?? "" },
   };
 }
