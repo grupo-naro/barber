@@ -50,6 +50,11 @@ enum InvitationKind {
   RESET
 }
 
+enum PaymentSource {
+  MERCADOPAGO
+  MANUAL
+}
+
 enum PaymentMethod {
   CASH
   TRANSFER
@@ -58,39 +63,52 @@ enum PaymentMethod {
 }
 
 model Barbershop {
-  id             String           @id @default(cuid())
-  slug           String           @unique
-  name           String
-  logoUrl        String?
-  description    String?
-  address        String?
-  phone          String?
-  whatsapp       String?
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  name            String
+  logoUrl         String?
+  description     String?
+  address         String?
+  phone           String?
+  whatsapp        String?
   /// Key relativa (`<barbershopId>/<archivo>`) de la portada en el storage de medios; URL pública `/media/<key>`.
-  coverImageKey  String?
+  coverImageKey   String?
   /// Handle de Instagram normalizado, sin `@`.
-  instagram      String?
-  googleMapsUrl  String?
+  instagram       String?
+  googleMapsUrl   String?
   /// Color principal de la landing (`#rrggbb` validado; `null` = azul original). Se guarda lo que eligió el dueño, sin ajustar.
-  brandPrimary   String?
+  brandPrimary    String?
   /// Color secundario de la landing (`#rrggbb` validado; `null` = rojo original).
-  brandSecondary String?
-  timezone       String           @default("America/Argentina/Buenos_Aires")
-  status         BarbershopStatus @default(ACTIVE)
-  plan           Plan             @default(FREE)
-  planExpiresAt  DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  brandSecondary  String?
+  timezone        String           @default("America/Argentina/Buenos_Aires")
+  status          BarbershopStatus @default(ACTIVE)
+  plan            Plan             @default(FREE)
+  /// "Pagado hasta" (último ms del día de negocio). Con `billingEnabled` solo cambia con pagos (`recordPayment`).
+  planExpiresAt   DateTime?
+  /// Cobro de la suscripción activado. Las barberías existentes al migrar quedan en `false` (EXEMPT).
+  billingEnabled  Boolean          @default(false)
+  /// Monto mensual de la suscripción (ARS).
+  monthlyAmount   Decimal?         @db.Decimal(12, 2)
+  /// Id de la suscripción (preapproval) de Mercado Pago.
+  mpPreapprovalId String?          @unique
+  mpInitPoint     String?
+  /// Estado de la suscripción en MP (`pending`, `authorized`, `paused`, `cancelled`).
+  mpStatus        String?
+  /// Mail de la cuenta de MP con la que tiene que pagar el dueño.
+  payerEmail      String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  openingHours   OpeningHours[]
-  users          User[]
-  services       Service[]
-  customers      Customer[]
-  appointments   Appointment[]
-  serviceRecords ServiceRecord[]
-  cashCloses     CashRegisterClose[]
-  galleryImages  GalleryImage[]
-  invitations    Invitation[]
+  openingHours         OpeningHours[]
+  users                User[]
+  services             Service[]
+  customers            Customer[]
+  appointments         Appointment[]
+  serviceRecords       ServiceRecord[]
+  cashCloses           CashRegisterClose[]
+  galleryImages        GalleryImage[]
+  invitations          Invitation[]
+  subscriptionPayments SubscriptionPayment[]
 }
 
 /// Foto de la galería pública de la barbería. El archivo vive en el storage de medios bajo `storageKey`.
@@ -308,4 +326,36 @@ model BarberPayout {
   shopAmount   Decimal           @db.Decimal(12, 2) // lo que queda para la barbería
 
   @@unique([cashCloseId, barberId])
+}
+
+/// Pago de la suscripción de una barbería a la plataforma (MP o manual). Cada pago extiende `planExpiresAt`.
+model SubscriptionPayment {
+  id                  String        @id @default(cuid())
+  barbershopId        String
+  barbershop          Barbershop    @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  source              PaymentSource
+  amount              Decimal       @db.Decimal(12, 2)
+  paidAt              DateTime
+  /// El "pagado hasta" que dejó este pago.
+  coversUntil         DateTime
+  /// Id del **pago** de MP (no de la cuota). Único: es la llave de idempotencia del webhook.
+  mpPaymentId         String?       @unique
+  note                String?
+  createdByAdminId    String?
+  /// Cobro de MP que llegó con un pago manual reciente y el período todavía vigente (posible cobro doble).
+  suspectedDuplicate  Boolean       @default(false)
+  duplicateReviewedAt DateTime?
+  createdAt           DateTime      @default(now())
+
+  @@index([barbershopId])
+}
+
+/// Ajustes de la plataforma: una sola fila (`id = "singleton"`).
+model PlatformSettings {
+  id              String   @id @default("singleton")
+  transferAlias   String?
+  transferCbu     String?
+  transferHolder  String?
+  contactWhatsapp String?
+  updatedAt       DateTime @updatedAt
 }
