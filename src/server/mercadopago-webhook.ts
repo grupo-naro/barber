@@ -4,7 +4,9 @@
 // campos del body. Idempotente: `recordPayment` deduplica por el id del **pago** (nunca el de la cuota).
 //
 // Devuelve "ignored" para lo que no nos corresponde (tipos desconocidos, preapprovals ajenos, cuotas sin
-// cobrar, anomalías cross-tenant) y deja que los errores inesperados suban (la ruta responde 500 y MP reintenta).
+// cobrar, anomalías cross-tenant, montos no numéricos) y deja que los errores inesperados suban (la ruta
+// responde 500 y MP reintenta). Un monto inválido no se reintenta: queda en el log como `[mp-webhook] anomalía`.
+// Un monto distinto de `monthlyAmount` se registra igual y solo se loguea.
 import { db } from "@/lib/db";
 import { getAuthorizedPayment, getPayment, getPreapproval } from "@/lib/mercadopago";
 import { MpPaymentConflictError, recordPayment } from "@/server/billing";
@@ -17,7 +19,10 @@ function log(message: string, detail: Record<string, unknown>) {
 }
 
 async function shopByPreapproval(preapprovalId: string) {
-  return db.barbershop.findUnique({ where: { mpPreapprovalId: preapprovalId }, select: { id: true } });
+  return db.barbershop.findUnique({
+    where: { mpPreapprovalId: preapprovalId },
+    select: { id: true, monthlyAmount: true },
+  });
 }
 
 async function handlePreapproval(dataId: string): Promise<MpNotificationResult> {
@@ -59,14 +64,33 @@ async function handlePayment(paymentId: string, knownPreapprovalId: string | nul
     return "ignored";
   }
 
+  // `getPayment` normaliza un monto no numérico a NaN. Reintentar no lo arregla: se ignora y queda en el log.
+  if (!Number.isFinite(payment.transaction_amount)) {
+    console.error("[mp-webhook] anomalía: pago aprobado con monto no numérico", {
+      paymentId: payment.id,
+      preapprovalId,
+    });
+    return "ignored";
+  }
+  // Sin aritmética flotante: el valor recibido se formatea a 2 decimales y `recordPayment` lo valida.
+  const amount = payment.transaction_amount.toFixed(2);
+  // Se compara con `Decimal` (nunca con floats). Distinto no es un error: se registra igual y se loguea.
+  if (shop.monthlyAmount !== null && !shop.monthlyAmount.equals(amount)) {
+    log("monto distinto de monthlyAmount", {
+      paymentId: payment.id,
+      barbershopId: shop.id,
+      amount,
+      monthlyAmount: shop.monthlyAmount.toFixed(2),
+    });
+  }
+
   try {
     await recordPayment({
       barbershopId: shop.id,
       source: "MERCADOPAGO",
       months: 1,
       mpPaymentId: payment.id,
-      // Sin aritmética flotante: el valor recibido se formatea a 2 decimales y `recordPayment` lo valida.
-      amount: payment.transaction_amount.toFixed(2),
+      amount,
       paidAt: new Date(payment.date_approved),
     });
   } catch (error) {
