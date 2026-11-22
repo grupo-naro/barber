@@ -70,7 +70,8 @@ export async function BillingGate({ session }: { session: Session }) {
         </p>
       </div>
 
-      {mpLink || mpAuthorized || shop.payerEmail ? (
+      {/* Sin suscripción vigente en MP (`cancelled` o ninguna) no hay nada que pagar ahí: ni botón ni aviso del mail. */}
+      {mpLink || mpAuthorized ? (
         <Card>
           <CardHeader>
             <CardTitle>
@@ -82,28 +83,26 @@ export async function BillingGate({ session }: { session: Session }) {
               </CardDescription>
             ) : null}
           </CardHeader>
-          {mpLink || mpAuthorized ? (
-            <CardContent className="flex flex-col gap-3">
-              {mpLink ? (
-                <a
-                  href={mpLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(buttonVariants({ size: "lg" }), "h-11 w-full sm:w-auto")}
-                >
-                  <CreditCard aria-hidden />
-                  Pagar con Mercado Pago
-                </a>
-              ) : null}
-              {mpAuthorized ? (
-                <p className="text-sm">
-                  Tu suscripción está activa, pero el último cobro no se pudo hacer. Entrá a tu cuenta de Mercado Pago,
-                  andá a <span className="font-medium">Suscripciones</span> y cambiá el medio de pago: el cobro se
-                  reintenta solo.
-                </p>
-              ) : null}
-            </CardContent>
-          ) : null}
+          <CardContent className="flex flex-col gap-3">
+            {mpLink ? (
+              <a
+                href={mpLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ size: "lg" }), "h-11 w-full sm:w-auto")}
+              >
+                <CreditCard aria-hidden />
+                Pagar con Mercado Pago
+              </a>
+            ) : null}
+            {mpAuthorized ? (
+              <p className="text-sm">
+                Tu suscripción está activa, pero el último cobro no se pudo hacer. Entrá a tu cuenta de Mercado Pago,
+                andá a <span className="font-medium">Suscripciones</span> y cambiá el medio de pago: el cobro se
+                reintenta solo.
+              </p>
+            ) : null}
+          </CardContent>
         </Card>
       ) : null}
 
