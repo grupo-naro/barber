@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { planExpiresAtFromDate } from "@/lib/platform-admin";
-import { recordPayment } from "@/server/billing";
+import { MpPaymentConflictError, recordPayment } from "@/server/billing";
 
 const TZ = "America/Argentina/Buenos_Aires";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -103,6 +103,66 @@ describe("recordPayment", () => {
     expect(second).toEqual({ created: false, paidUntil: first.paidUntil });
     expect(await db.subscriptionPayment.count({ where: { barbershopId: id } })).toBe(1);
     expect(await paidUntilOf(id)).toEqual(first.paidUntil);
+  });
+
+  it("el mismo mpPaymentId en otra barbería rechaza con MpPaymentConflictError y no toca la barbería B", async () => {
+    const a = await makeShop(planExpiresAtFromDate("2027-03-15", TZ));
+    const b = await makeShop(planExpiresAtFromDate("2027-06-01", TZ));
+    const mpPaymentId = `test-${randomUUID()}`;
+    const input = (barbershopId: string) => ({
+      barbershopId,
+      source: "MERCADOPAGO" as const,
+      amount: "15000",
+      paidAt: new Date("2027-03-14T15:00:00Z"),
+      months: 1,
+      mpPaymentId,
+    });
+    const first = await recordPayment(input(a));
+    expect(first.created).toBe(true);
+
+    const error = await recordPayment(input(b)).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(MpPaymentConflictError);
+    const message = (error as Error).message;
+    expect(message).not.toContain(a);
+    expect(message).not.toContain(b);
+    expect(message).not.toContain("15000");
+
+    expect(await paidUntilOf(b)).toEqual(planExpiresAtFromDate("2027-06-01", TZ));
+    expect(await db.subscriptionPayment.count({ where: { barbershopId: b } })).toBe(0);
+
+    // La misma llamada con A sigue siendo idempotente.
+    expect(await recordPayment(input(a))).toEqual({ created: false, paidUntil: first.paidUntil });
+    expect(await db.subscriptionPayment.count({ where: { barbershopId: a } })).toBe(1);
+  });
+
+  it("si el pago de otra barbería se ve recién por P2002, el fallback también rechaza y no devuelve su coversUntil", async () => {
+    const a = await makeShop(null);
+    const b = await makeShop(null);
+    const mpPaymentId = `test-${randomUUID()}`;
+    const input = (barbershopId: string) => ({
+      barbershopId,
+      source: "MERCADOPAGO" as const,
+      amount: "15000",
+      paidAt: new Date("2027-05-02T15:00:00Z"),
+      months: 1,
+      mpPaymentId,
+    });
+    expect((await recordPayment(input(a))).created).toBe(true);
+
+    const original = db.$transaction.bind(db) as (...args: unknown[]) => Promise<unknown>;
+    vi.spyOn(db, "$transaction").mockImplementationOnce(((fn: (tx: unknown) => Promise<unknown>, opts: unknown) =>
+      original((tx: Record<string, unknown>) => {
+        const payments = tx.subscriptionPayment as Record<string, unknown>;
+        const blind = new Proxy(payments, {
+          get: (target, prop) =>
+            prop === "findUnique" ? async () => null : Reflect.get(target, prop),
+        });
+        return fn(new Proxy(tx, { get: (t, p) => (p === "subscriptionPayment" ? blind : Reflect.get(t, p)) }));
+      }, opts)) as never);
+
+    await expect(recordPayment(input(b))).rejects.toBeInstanceOf(MpPaymentConflictError);
+    expect(await paidUntilOf(b)).toBeNull();
+    expect(await db.subscriptionPayment.count({ where: { barbershopId: b } })).toBe(0);
   });
 
   it("un pago MANUAL de 2 meses extiende 2 meses y guarda nota y admin", async () => {

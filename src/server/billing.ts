@@ -9,6 +9,9 @@
 // existe y se inserta + extiende el período en la misma transacción. Si dos llamadas compiten igual y la
 // inserción choca con `P2002`, la transacción entera se revierte (no queda el período extendido) y se
 // devuelve `{ created: false }`.
+//
+// Multi-tenant: `mpPaymentId` es único en toda la tabla. Si el pago ya está registrado en **otra** barbería no
+// se devuelve `created: false` en silencio: se lanza `MpPaymentConflictError` (anomalía que el llamador loguea).
 import { Prisma } from "@/generated/prisma/client";
 import { extendPaidUntil, isSuspectedDuplicate } from "@/lib/billing";
 import { db } from "@/lib/db";
@@ -31,6 +34,17 @@ export type RecordPaymentResult = { created: boolean; paidUntil: Date };
 
 const AMOUNT_RE = /^\d{1,10}(\.\d{1,2})?$/;
 
+/**
+ * El `mpPaymentId` ya está registrado en otra barbería. El `message` es genérico a propósito: no lleva
+ * `barbershopId` ni montos, para que no se filtre si algún llamador lo muestra.
+ */
+export class MpPaymentConflictError extends Error {
+  constructor() {
+    super("El pago de Mercado Pago ya está registrado en otra barbería");
+    this.name = "MpPaymentConflictError";
+  }
+}
+
 class AlreadyRecorded extends Error {
   constructor(readonly paidUntil: Date) {
     super("Pago ya registrado");
@@ -46,21 +60,27 @@ function validate(input: RecordPaymentInput) {
   if (input.source === "MERCADOPAGO" && !input.mpPaymentId) throw new Error("Falta mpPaymentId en un pago de MP");
 }
 
-/** "Pagado hasta" actual de la DB para responder a un pago repetido. */
-async function currentPaidUntil(barbershopId: string, mpPaymentId: string | undefined): Promise<Date> {
+/**
+ * "Pagado hasta" actual de la DB para responder a un pago repetido (fallback por `P2002`). Si el pago que
+ * chocó es de otra barbería, lanza `MpPaymentConflictError` en lugar de devolver datos de otro tenant.
+ */
+async function currentPaidUntil(barbershopId: string, mpPaymentId: string): Promise<Date> {
+  const existing = await db.subscriptionPayment.findUnique({
+    where: { mpPaymentId },
+    select: { barbershopId: true, coversUntil: true },
+  });
+  if (existing && existing.barbershopId !== barbershopId) throw new MpPaymentConflictError();
   const shop = await db.barbershop.findUnique({ where: { id: barbershopId }, select: { planExpiresAt: true } });
   if (shop?.planExpiresAt) return shop.planExpiresAt;
-  // Sin "pagado hasta" (editado a mano): lo que cubrió el pago ya registrado.
-  const existing = mpPaymentId
-    ? await db.subscriptionPayment.findUnique({ where: { mpPaymentId }, select: { coversUntil: true } })
-    : null;
+  // Sin "pagado hasta" (editado a mano): lo que cubrió el pago ya registrado (de esta misma barbería).
   if (existing) return existing.coversUntil;
   throw new Error(`Barbería sin "pagado hasta": ${barbershopId}`);
 }
 
 /**
  * Registra un pago aprobado y extiende el período: `paidUntil = max(paidUntil, paidAt) + months` (día de negocio).
- * Si el `mpPaymentId` ya estaba registrado devuelve `{ created: false, paidUntil: <el actual> }` sin extender.
+ * Si el `mpPaymentId` ya estaba registrado en esta barbería devuelve `{ created: false, paidUntil: <el actual> }`
+ * sin extender; si está registrado en otra barbería lanza `MpPaymentConflictError` sin tocar nada.
  */
 export async function recordPayment(input: RecordPaymentInput): Promise<RecordPaymentResult> {
   validate(input);
@@ -82,8 +102,9 @@ export async function recordPayment(input: RecordPaymentInput): Promise<RecordPa
         if (mpPaymentId) {
           const existing = await tx.subscriptionPayment.findUnique({
             where: { mpPaymentId },
-            select: { coversUntil: true },
+            select: { barbershopId: true, coversUntil: true },
           });
+          if (existing && existing.barbershopId !== input.barbershopId) throw new MpPaymentConflictError();
           if (existing) throw new AlreadyRecorded(shop.planExpiresAt ?? existing.coversUntil);
         }
 
