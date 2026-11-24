@@ -7,6 +7,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PanelBody, PanelHeader } from "@/components/panel/panel-header";
+import { CashSkeleton } from "@/components/panel/skeletons";
 import { requireRole } from "@/lib/auth";
 import { PAYOUT_SCHEME_LABELS } from "@/lib/barbershop-settings";
 import { formatPrice } from "@/lib/money";
@@ -65,7 +67,7 @@ function DatePicker({ date, today }: { date: string; today: string }) {
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <Label htmlFor="cash-date">Día</Label>
-        <Input id="cash-date" type="date" name="date" defaultValue={date} max={today} required className="h-11" />
+        <Input id="cash-date" type="date" name="date" defaultValue={date} max={today} required className="h-11 bg-card" />
       </div>
       <Button type="submit" variant="outline" size="lg" className="h-11">
         Ver
@@ -208,102 +210,89 @@ async function CashContent({ searchParams }: { searchParams: PageProps<"/dashboa
 
   return (
     <>
-      <DatePicker date={date} today={today} />
+      <PanelHeader title="Caja" context={day.status === "closed" ? "Cerrada" : "Abierta"} />
+      <PanelBody>
+        <DatePicker date={date} today={today} />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold first-letter:uppercase">{dayLabel}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-semibold first-letter:uppercase">{dayLabel}</h2>
+          {day.status === "closed" ? (
+            <Badge>
+              <Lock />
+              Caja cerrada
+            </Badge>
+          ) : (
+            <Badge variant="outline">Caja abierta</Badge>
+          )}
+        </div>
+
+        <TotalsCard day={day} />
+        <BarbersCard day={day} />
+
         {day.status === "closed" ? (
-          <Badge>
-            <Lock />
-            Caja cerrada
-          </Badge>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2 className="text-lg font-semibold">Cierre</h2>
+              </CardTitle>
+              <CardDescription>
+                Cerró {day.closedByName} el{" "}
+                {new Intl.DateTimeFormat("es-AR", {
+                  timeZone,
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hourCycle: "h23",
+                }).format(day.closedAt)}
+                .
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2 text-sm">
+              {day.notes ? (
+                <p className="whitespace-pre-wrap">{day.notes}</p>
+              ) : (
+                <p className="text-muted-foreground">Sin notas.</p>
+              )}
+              {day.openAfterClose > 0 ? (
+                <p className="text-destructive">
+                  {day.openAfterClose === 1
+                    ? "Hay 1 corte de este día sin cerrar (se cargó durante el cierre)."
+                    : `Hay ${day.openAfterClose} cortes de este día sin cerrar (se cargaron durante el cierre).`}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
         ) : (
-          <Badge variant="outline">Caja abierta</Badge>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2 className="text-lg font-semibold">Cerrar caja</h2>
+              </CardTitle>
+              <CardDescription>
+                Guarda los totales y la liquidación de cada barbero. Una vez cerrada, no se puede modificar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CloseCashForm
+                date={date}
+                dateLabel={dayLabel}
+                totalLabel={formatPrice(day.totals.total)}
+                debtors={day.barbers.filter((b) => isNegative(b.barberAmount)).length}
+              />
+            </CardContent>
+          </Card>
         )}
-      </div>
-
-      <TotalsCard day={day} />
-      <BarbersCard day={day} />
-
-      {day.status === "closed" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <h2 className="text-lg font-semibold">Cierre</h2>
-            </CardTitle>
-            <CardDescription>
-              Cerró {day.closedByName} el{" "}
-              {new Intl.DateTimeFormat("es-AR", {
-                timeZone,
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hourCycle: "h23",
-              }).format(day.closedAt)}
-              .
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            {day.notes ? (
-              <p className="whitespace-pre-wrap">{day.notes}</p>
-            ) : (
-              <p className="text-muted-foreground">Sin notas.</p>
-            )}
-            {day.openAfterClose > 0 ? (
-              <p className="text-destructive">
-                {day.openAfterClose === 1
-                  ? "Hay 1 corte de este día sin cerrar (se cargó durante el cierre)."
-                  : `Hay ${day.openAfterClose} cortes de este día sin cerrar (se cargaron durante el cierre).`}
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <h2 className="text-lg font-semibold">Cerrar caja</h2>
-            </CardTitle>
-            <CardDescription>
-              Guarda los totales y la liquidación de cada barbero. Una vez cerrada, no se puede modificar.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CloseCashForm
-              date={date}
-              dateLabel={dayLabel}
-              totalLabel={formatPrice(day.totals.total)}
-              debtors={day.barbers.filter((b) => isNegative(b.barberAmount)).length}
-            />
-          </CardContent>
-        </Card>
-      )}
+      </PanelBody>
     </>
-  );
-}
-
-function CashSkeleton() {
-  return (
-    <div className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando caja">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-32 animate-pulse rounded-xl bg-muted" />
-      ))}
-    </div>
   );
 }
 
 export default function CashPage({ searchParams }: PageProps<"/dashboard/cash">) {
   return (
-    <>
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Caja</h1>
-        <p className="text-muted-foreground">Cierre diario por medio de pago y liquidación de cada barbero.</p>
-      </div>
-      <Suspense fallback={<CashSkeleton />}>
-        <CashContent searchParams={searchParams} />
-      </Suspense>
-    </>
+    <Suspense fallback={<CashSkeleton />}>
+      <CashContent searchParams={searchParams} />
+    </Suspense>
   );
 }

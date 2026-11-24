@@ -1,20 +1,30 @@
-import { Suspense } from "react";
-import Link from "next/link";
-import { CircleUser, LogOut } from "lucide-react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
+import type { Viewport } from "next";
+import { Anton } from "next/font/google";
 import { requireSession, type Session } from "@/lib/auth";
 import { graceBannerMessage } from "@/lib/billing-access";
-import { logout } from "@/server/actions/auth";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { DashboardNav } from "@/components/dashboard-nav";
+import { panelThemeVars } from "@/lib/brand-colors";
+import { DashboardNav, DashboardNavFallback } from "@/components/dashboard-nav";
+import { PanelFallback } from "@/components/panel/panel-fallback";
+import { PanelPortalProvider } from "@/components/panel/portal-context";
 import { navItemsForRole } from "@/lib/dashboard-nav";
 import { planBanner, planBannerMessage } from "@/lib/platform-admin";
 import { cn } from "@/lib/utils";
+import { getPanelBrand } from "@/server/queries/landing";
+import "./panel.css";
 
-const roleLabel = { OWNER: "Dueño/a", BARBER: "Barbero/a" } as const;
+// Títulos y horas del panel. El cuerpo sigue en Geist.
+const display = Anton({
+  variable: "--font-display",
+  weight: "400",
+  subsets: ["latin", "latin-ext"],
+  display: "swap",
+});
+
+export const viewport: Viewport = { themeColor: "#000000", viewportFit: "cover" };
 
 /**
- * Aviso del header, solo para el dueño y con la fecha en la timezone de la barbería. No bloquea nada.
+ * Aviso de arriba de todo, solo para el dueño y con la fecha en la timezone de la barbería. No bloquea nada.
  * - `GRACE`: no se pudo cobrar la suscripción; fecha límite = "pagado hasta" + 12 días.
  * - `EXEMPT` (cobro desactivado): el aviso informativo del plan de siempre (`planBanner`).
  * - `PAID`: sin aviso. Con el panel bloqueado, el aviso es la pantalla de pago (`BillingGate`).
@@ -31,75 +41,57 @@ function headerBanner(session: Session): { message: string; urgent: boolean } | 
   return message ? { message, urgent: plan.kind === "expired" } : null;
 }
 
-async function SessionHeader() {
+const rootClass = cn(
+  "panel-theme flex min-h-full flex-1 flex-col bg-background font-sans text-foreground",
+  display.variable,
+);
+
+/** Sesión y colores de la barbería: va dentro de `<Suspense>`. El id de los colores sale siempre de la sesión. */
+async function PanelShell({ children }: { children: ReactNode }) {
   const session = await requireSession();
+  const brand = await getPanelBrand(session.barbershopId);
   const banner = headerBanner(session);
   return (
-    <>
-      <header className="flex items-center justify-between gap-3 border-b bg-background px-4 py-3">
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{session.barbershop.name}</p>
-          <p className="flex items-center gap-2 truncate text-sm text-muted-foreground">
-            {session.user.name}
-            <Badge variant="secondary">{roleLabel[session.role]}</Badge>
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/dashboard/account"
-            aria-label="Mi cuenta"
-            className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "h-11 min-w-11")}
+    <div
+      className={rootClass}
+      style={panelThemeVars(brand.primary, brand.secondary) as CSSProperties}
+      data-notice={banner ? "" : undefined}
+    >
+      <PanelPortalProvider>
+        {banner ? (
+          <p
+            role="status"
+            className={cn(
+              "border-b bg-card px-4 pt-[calc(0.5rem+var(--panel-safe-top))] pb-2 text-center text-sm",
+              banner.urgent ? "font-medium text-destructive" : "text-foreground",
+            )}
           >
-            <CircleUser aria-hidden />
-            <span className="max-sm:sr-only">Mi cuenta</span>
-          </Link>
-          <form action={logout}>
-            <Button type="submit" variant="outline" size="lg" className="h-11 min-w-11" aria-label="Cerrar sesión">
-              <LogOut />
-              <span className="max-sm:sr-only">Cerrar sesión</span>
-            </Button>
-          </form>
-        </div>
-      </header>
-      {banner ? (
-        <p
-          role="status"
-          className={cn(
-            "border-b px-4 py-2 text-center text-sm",
-            banner.urgent ? "bg-destructive/10 text-destructive" : "bg-muted text-foreground",
-          )}
-        >
-          {banner.message}
-        </p>
-      ) : null}
-      {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
-      <DashboardNav items={navItemsForRole(session.role)} />
-    </>
+            {banner.message}
+          </p>
+        ) : null}
+        {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
+        <DashboardNav items={navItemsForRole(session.role)} />
+        <main className="flex flex-1 flex-col">{children}</main>
+      </PanelPortalProvider>
+    </div>
   );
 }
 
-function HeaderFallback() {
+function ShellFallback() {
   return (
-    <>
-      <header className="h-17.25 border-b bg-background" aria-busy="true" />
-      <div
-        className="fixed inset-x-0 bottom-0 h-[calc(3.5rem+env(safe-area-inset-bottom))] border-t bg-background sm:static sm:h-13.25 sm:border-t-0 sm:border-b"
-        aria-hidden="true"
-      />
-    </>
+    <div className={rootClass}>
+      <DashboardNavFallback />
+      <main className="flex flex-1 flex-col">
+        <PanelFallback />
+      </main>
+    </div>
   );
 }
 
 export default function DashboardLayout({ children }: LayoutProps<"/">) {
   return (
-    <div className="flex flex-1 flex-col bg-background">
-      <Suspense fallback={<HeaderFallback />}>
-        <SessionHeader />
-      </Suspense>
-      {/* En mobile el nav es una barra fija abajo: el padding inferior evita que tape el último elemento. */}
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-6 pb-[calc(3.5rem+env(safe-area-inset-bottom)+1.5rem)] sm:pb-6">
-        {children}
-      </main>
-    </div>
+    <Suspense fallback={<ShellFallback />}>
+      <PanelShell>{children}</PanelShell>
+    </Suspense>
   );
 }

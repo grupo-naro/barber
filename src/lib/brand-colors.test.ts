@@ -9,6 +9,7 @@ import {
   brandStyle,
   contrastRatio,
   hueOf,
+  panelThemeVars,
   type BrandPalette,
 } from "./brand-colors";
 
@@ -143,6 +144,31 @@ describe("brand-colors: brandPalette", () => {
       expect(p.royal).toBe(preset.primary);
       expect(p.rojo).toBe(preset.secondary);
       expectAccessible(p);
+    }
+  });
+});
+
+describe("brand-colors: panelThemeVars", () => {
+  it("tema del panel: colores originales y ajustados", () => {
+    expect(panelThemeVars(null, null)).toEqual({
+      "--brand": "#1f2e9a",
+      "--primary": "#d7191f",
+      "--pole-a": "#1f2e9a",
+      "--pole-b": "#d7191f",
+    });
+    for (const p of BRAND_PRESETS) {
+      const v = panelThemeVars(p.primary, p.secondary);
+      expect(contrastRatio(v["--primary"], "#ffffff")).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(v["--brand"], "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(panelThemeVars("red;}", "x")).toEqual(panelThemeVars(null, null));
+  });
+
+  it("ajusta un color ilegible y usa siempre hex", () => {
+    const v = panelThemeVars("#ffff00", "#ffffff");
+    for (const value of Object.values(v)) {
+      expect(value).toMatch(HEX);
+      expect(contrastRatio(value, WHITE)).toBeGreaterThanOrEqual(4.5);
     }
   });
 });

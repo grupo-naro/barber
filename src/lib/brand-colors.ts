@@ -235,3 +235,15 @@ export function brandStyle(primary: string | null, secondary: string | null): Re
   if (primary === null && secondary === null) return undefined;
   return paletteVars(brandPalette(primary, secondary));
 }
+
+export type PanelThemeVars = Record<"--brand" | "--primary" | "--pole-a" | "--pole-b", string>;
+
+/**
+ * Colores de marca del panel, para el `style` de la raíz `.panel-theme`: `--brand` (selección, "Sin asignar")
+ * es el principal y `--primary` (acción) el secundario. Los valores salen siempre de `brandPalette` (hex
+ * `#rrggbb` con texto blanco legible), nunca del string guardado.
+ */
+export function panelThemeVars(primary: string | null, secondary: string | null): PanelThemeVars {
+  const { royal, rojo } = brandPalette(primary, secondary);
+  return { "--brand": royal, "--primary": rojo, "--pole-a": royal, "--pole-b": rojo };
+}

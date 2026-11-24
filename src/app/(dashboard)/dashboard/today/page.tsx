@@ -4,6 +4,8 @@ import Link from "next/link";
 import { CalendarClock, Lock, NotebookPen, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PanelBody, PanelHeader } from "@/components/panel/panel-header";
+import { TodaySkeleton } from "@/components/panel/skeletons";
 import { requireSession } from "@/lib/auth";
 import { formatPrice } from "@/lib/money";
 import { APPOINTMENT_STATUS_LABELS, OPEN_APPOINTMENT_STATUSES, PAYMENT_METHOD_LABELS } from "@/lib/records";
@@ -23,7 +25,7 @@ import {
   type TodayScope,
 } from "@/server/queries/records";
 import { AppointmentStatusButtons, CompleteAppointmentForm } from "./appointment-actions";
-import { formatLongDate } from "./format";
+import { formatLongDate, initials } from "./format";
 import { WalkInForm } from "./walk-in-form";
 
 export const metadata: Metadata = { title: "Cuaderno del día — Barber" };
@@ -138,123 +140,118 @@ async function TodayContent() {
 
   return (
     <>
-      <p className="-mt-3 text-muted-foreground">
-        {formatLongDate(date)}
-        {isOwner ? "" : " · tus turnos, los sin asignar y tus cortes"}
-      </p>
+      <PanelHeader
+        title="Hoy"
+        context={formatLongDate(date)}
+        action={
+          <Link
+            href="/dashboard/account"
+            aria-label="Mi cuenta"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-(--panel-header-foreground) font-semibold"
+          >
+            {initials(session.user.name)}
+          </Link>
+        }
+      />
+      <PanelBody>
 
-      {closed ? (
-        <p className="flex items-center gap-2 rounded-xl border bg-muted px-4 py-3 text-sm" role="status">
-          <Lock className="size-4 shrink-0" aria-hidden />
-          La caja de hoy ya está cerrada: no se pueden registrar más cortes.
-        </p>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <NotebookPen className="size-5" aria-hidden />
-              Corte sin turno
-            </CardTitle>
-            <CardDescription>Elegí el servicio y confirmá. Cliente y barbero son opcionales.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <WalkInForm services={services} barbers={barbers} currentUserId={session.userId} />
-          </CardContent>
-        </Card>
-      )}
-
-      <section className="flex flex-col gap-3" aria-labelledby="turnos-hoy">
-        <h2 id="turnos-hoy" className="flex items-center gap-2 text-lg font-semibold">
-          <CalendarClock className="size-5" aria-hidden />
-          Turnos de hoy <span className="text-muted-foreground">({appointments.length})</span>
-        </h2>
-        {appointments.length === 0 ? (
-          <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-            No hay turnos para hoy.
+        {closed ? (
+          <p className="flex items-center gap-2 rounded-xl border bg-muted px-4 py-3 text-sm" role="status">
+            <Lock className="size-4 shrink-0" aria-hidden />
+            La caja de hoy ya está cerrada: no se pueden registrar más cortes.
           </p>
         ) : (
-          <ul className="flex flex-col gap-3">
-            {appointments.map((appointment) => (
-              <AppointmentItem
-                key={appointment.id}
-                appointment={appointment}
-                timeZone={timeZone}
-                services={services}
-                barbers={barbers}
-                currentUserId={session.userId}
-                closed={closed}
-              />
-            ))}
-          </ul>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <NotebookPen className="size-5" aria-hidden />
+                Corte sin turno
+              </CardTitle>
+              <CardDescription>Elegí el servicio y confirmá. Cliente y barbero son opcionales.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WalkInForm services={services} barbers={barbers} currentUserId={session.userId} />
+            </CardContent>
+          </Card>
         )}
-      </section>
 
-      <section className="flex flex-col gap-3" aria-labelledby="registros-hoy">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 id="registros-hoy" className="text-lg font-semibold">
-            Cortes de hoy <span className="text-muted-foreground">({records.length})</span>
+        <section className="flex flex-col gap-3" aria-labelledby="turnos-hoy">
+          <h2 id="turnos-hoy" className="flex items-center gap-2 text-lg font-semibold">
+            <CalendarClock className="size-5" aria-hidden />
+            Turnos de hoy <span className="text-muted-foreground">({appointments.length})</span>
           </h2>
-          <p className="text-right">
-            <span className="text-sm text-muted-foreground">Total </span>
-            <span className="text-lg font-semibold tabular-nums">{formatPrice(total)}</span>
-          </p>
-        </div>
-        {records.length === 0 ? (
-          <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-            Todavía no se registró ningún corte hoy.
-          </p>
-        ) : (
-          <ul className="flex flex-col divide-y rounded-xl border bg-card">
-            {records.map((record) => (
-              <li key={record.id} className="flex items-start gap-3 px-4 py-3">
-                <span className="min-w-10 font-semibold tabular-nums">#{record.dailyNumber}</span>
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <p className="text-sm text-muted-foreground tabular-nums">
-                    {localTime(record.createdAt, timeZone)} · {record.barber.name}
-                    {record.fromAppointment ? " · con turno" : ""}
-                  </p>
-                  {record.customer ? (
-                    <Link href={`/dashboard/today/customers/${record.customer.id}`} className={customerLinkClass}>
-                      {record.customer.name}
-                    </Link>
-                  ) : (
-                    <p className="text-muted-foreground">Sin cliente</p>
-                  )}
-                  <p className="text-sm">{record.items.map((item) => item.serviceName).join(" + ")}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="font-semibold tabular-nums">{formatPrice(record.total)}</span>
-                  <Badge variant="secondary">{PAYMENT_METHOD_LABELS[record.paymentMethod]}</Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </>
-  );
-}
+          {appointments.length === 0 ? (
+            <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+              No hay turnos para hoy.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {appointments.map((appointment) => (
+                <AppointmentItem
+                  key={appointment.id}
+                  appointment={appointment}
+                  timeZone={timeZone}
+                  services={services}
+                  barbers={barbers}
+                  currentUserId={session.userId}
+                  closed={closed}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
 
-function TodaySkeleton() {
-  return (
-    <div className="flex flex-col gap-3" aria-busy="true" aria-label="Cargando el cuaderno">
-      <div className="h-64 animate-pulse rounded-xl bg-muted" />
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="h-20 animate-pulse rounded-xl bg-muted" />
-      ))}
-    </div>
+        <section className="flex flex-col gap-3" aria-labelledby="registros-hoy">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="registros-hoy" className="text-lg font-semibold">
+              Cortes de hoy <span className="text-muted-foreground">({records.length})</span>
+            </h2>
+            <p className="text-right">
+              <span className="text-sm text-muted-foreground">Total </span>
+              <span className="text-lg font-semibold tabular-nums">{formatPrice(total)}</span>
+            </p>
+          </div>
+          {records.length === 0 ? (
+            <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+              Todavía no se registró ningún corte hoy.
+            </p>
+          ) : (
+            <ul className="flex flex-col divide-y rounded-xl border bg-card">
+              {records.map((record) => (
+                <li key={record.id} className="flex items-start gap-3 px-4 py-3">
+                  <span className="min-w-10 font-semibold tabular-nums">#{record.dailyNumber}</span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <p className="text-sm text-muted-foreground tabular-nums">
+                      {localTime(record.createdAt, timeZone)} · {record.barber.name}
+                      {record.fromAppointment ? " · con turno" : ""}
+                    </p>
+                    {record.customer ? (
+                      <Link href={`/dashboard/today/customers/${record.customer.id}`} className={customerLinkClass}>
+                        {record.customer.name}
+                      </Link>
+                    ) : (
+                      <p className="text-muted-foreground">Sin cliente</p>
+                    )}
+                    <p className="text-sm">{record.items.map((item) => item.serviceName).join(" + ")}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="font-semibold tabular-nums">{formatPrice(record.total)}</span>
+                    <Badge variant="secondary">{PAYMENT_METHOD_LABELS[record.paymentMethod]}</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </PanelBody>
+    </>
   );
 }
 
 export default function TodayPage() {
   return (
-    <>
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Cuaderno del día</h1>
-      </div>
-      <Suspense fallback={<TodaySkeleton />}>
-        <TodayContent />
-      </Suspense>
-    </>
+    <Suspense fallback={<TodaySkeleton />}>
+      <TodayContent />
+    </Suspense>
   );
 }

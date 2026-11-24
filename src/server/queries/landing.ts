@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { publicBarbershopWhere } from "@/server/queries/public-barbershop-where";
@@ -93,6 +94,20 @@ export async function getLandingSettings(barbershopId: string): Promise<LandingS
     brandSecondary: shop.brandSecondary,
   };
 }
+
+export type PanelBrand = { primary: string | null; secondary: string | null };
+
+/**
+ * Colores de marca para el tema del panel (`null` = originales). `barbershopId` tiene que salir de la
+ * sesión. Memoizado por request; el layout los pasa por `panelThemeVars`.
+ */
+export const getPanelBrand = cache(async (barbershopId: string): Promise<PanelBrand> => {
+  const shop = await db.barbershop.findUnique({
+    where: { id: barbershopId },
+    select: { brandPrimary: true, brandSecondary: true },
+  });
+  return { primary: shop?.brandPrimary ?? null, secondary: shop?.brandSecondary ?? null };
+});
 
 export type PublicOpeningHours = { weekday: number; opensAt: string | null; closesAt: string | null; closed: boolean };
 
