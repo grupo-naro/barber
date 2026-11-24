@@ -7,6 +7,7 @@ import { panelThemeVars } from "@/lib/brand-colors";
 import { DashboardNav, DashboardNavFallback } from "@/components/dashboard-nav";
 import { PanelFallback } from "@/components/panel/panel-fallback";
 import { PanelPortalProvider } from "@/components/panel/portal-context";
+import { ToastProvider } from "@/components/panel/toast";
 import { navItemsForRole } from "@/lib/dashboard-nav";
 import { planBanner, planBannerMessage } from "@/lib/platform-admin";
 import { cn } from "@/lib/utils";
@@ -58,20 +59,22 @@ async function PanelShell({ children }: { children: ReactNode }) {
       data-notice={banner ? "" : undefined}
     >
       <PanelPortalProvider>
-        {banner ? (
-          <p
-            role="status"
-            className={cn(
-              "border-b bg-card px-4 pt-[calc(0.5rem+var(--panel-safe-top))] pb-2 text-center text-sm",
-              banner.urgent ? "font-medium text-destructive" : "text-foreground",
-            )}
-          >
-            {banner.message}
-          </p>
-        ) : null}
-        {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
-        <DashboardNav items={navItemsForRole(session.role)} />
-        <main className="flex flex-1 flex-col">{children}</main>
+        <ToastProvider>
+          {banner ? (
+            <p
+              role="status"
+              className={cn(
+                "border-b bg-card px-4 pt-[calc(0.5rem+var(--panel-safe-top))] pb-2 text-center text-sm",
+                banner.urgent ? "font-medium text-destructive" : "text-foreground",
+              )}
+            >
+              {banner.message}
+            </p>
+          ) : null}
+          {/* El filtrado por rol se hace acá, en el servidor, con el rol de la sesión. */}
+          <DashboardNav items={navItemsForRole(session.role)} />
+          <main className="flex flex-1 flex-col">{children}</main>
+        </ToastProvider>
       </PanelPortalProvider>
     </div>
   );
