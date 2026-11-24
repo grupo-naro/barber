@@ -1,10 +1,3 @@
-const ars = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
-
-/** Precio decimal ("12000.00") en ARS: "$ 12.000,00". Se formatea el string, sin pasar por float. */
-export function formatPrice(price: string): string {
-  return ars.format(price as Intl.StringNumericLiteral);
-}
-
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);

@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import {
   adjustmentError,
@@ -16,7 +17,7 @@ import {
   type Rounding,
 } from "@/lib/pricing";
 import { applyBulkPriceUpdate, type BulkPriceState } from "@/server/actions/services";
-import { formatPrice, nativeControlClass } from "./format";
+import { nativeControlClass } from "./format";
 
 type BulkService = { id: string; name: string; price: string };
 type Direction = "up" | "down";

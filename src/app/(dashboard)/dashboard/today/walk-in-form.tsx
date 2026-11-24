@@ -6,6 +6,7 @@ import { NotebookPen, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatPrice } from "@/lib/money";
 import { normalizePhone, sumPrices, type PaymentMethodValue } from "@/lib/records";
 import {
   createWalkIn,
@@ -15,7 +16,7 @@ import {
 } from "@/server/actions/records";
 import type { BarberOption, ServiceOption } from "@/server/queries/records";
 import { PaymentPicker, ResultMessage, ServiceChips, toggleId } from "./fields";
-import { formatPrice, nativeControlClass } from "./format";
+import { nativeControlClass } from "./format";
 
 type Props = {
   services: ServiceOption[];

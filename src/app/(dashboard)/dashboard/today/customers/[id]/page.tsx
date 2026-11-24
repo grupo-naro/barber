@@ -5,8 +5,9 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Phone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth";
+import { formatPrice } from "@/lib/money";
 import { getCustomerHistory } from "@/server/queries/records";
-import { formatPrice, formatShortDate } from "../../format";
+import { formatShortDate } from "../../format";
 import { NotesForm } from "./notes-form";
 
 export const metadata: Metadata = { title: "Ficha del cliente — Barber" };

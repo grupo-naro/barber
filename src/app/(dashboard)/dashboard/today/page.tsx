@@ -5,6 +5,7 @@ import { CalendarClock, Lock, NotebookPen, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth";
+import { formatPrice } from "@/lib/money";
 import { APPOINTMENT_STATUS_LABELS, OPEN_APPOINTMENT_STATUSES, PAYMENT_METHOD_LABELS } from "@/lib/records";
 import { localTime } from "@/lib/time";
 import {
@@ -22,7 +23,7 @@ import {
   type TodayScope,
 } from "@/server/queries/records";
 import { AppointmentStatusButtons, CompleteAppointmentForm } from "./appointment-actions";
-import { formatLongDate, formatPrice } from "./format";
+import { formatLongDate } from "./format";
 import { WalkInForm } from "./walk-in-form";
 
 export const metadata: Metadata = { title: "Cuaderno del día — Barber" };

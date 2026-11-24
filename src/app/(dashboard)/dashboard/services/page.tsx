@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth";
+import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { listServices } from "@/server/queries/services";
 import { ActiveToggle } from "./active-toggle";
 import { BulkPriceForm } from "./bulk-price-form";
-import { formatDuration, formatPrice } from "./format";
+import { formatDuration } from "./format";
 import { ServiceForm } from "./service-form";
 
 export const metadata: Metadata = { title: "Servicios — Barber" };

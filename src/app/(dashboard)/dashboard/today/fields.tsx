@@ -1,9 +1,10 @@
 // Controles compartidos por los formularios del cuaderno (se usan desde componentes de cliente).
 import { Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { formatPrice } from "@/lib/money";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethodValue } from "@/lib/records";
 import type { BarberOption, ServiceOption } from "@/server/queries/records";
-import { chipClass, formatPrice, nativeControlClass } from "./format";
+import { chipClass, nativeControlClass } from "./format";
 
 /** Fila seleccionable de servicio: ancho completo, ≥ 44px, mismo lenguaje visual que los chips. */
 const serviceRowClass = `${chipClass} w-full rounded-lg px-3`;

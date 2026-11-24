@@ -9,11 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requireRole } from "@/lib/auth";
 import { PAYOUT_SCHEME_LABELS } from "@/lib/barbershop-settings";
+import { formatPrice } from "@/lib/money";
 import { addDays, isValidDate } from "@/lib/slots";
 import { businessDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { getCashDay, type CashBarberRow, type CashDay } from "@/server/queries/cash";
-import { formatPrice } from "../services/format";
 import { CloseCashForm } from "./close-form";
 
 export const metadata: Metadata = { title: "Caja — Barber" };

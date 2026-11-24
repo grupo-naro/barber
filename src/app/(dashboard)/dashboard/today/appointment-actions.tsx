@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { Ban, CheckCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatPrice } from "@/lib/money";
 import { sumPrices, type PaymentMethodValue } from "@/lib/records";
 import {
   completeAppointment,
@@ -12,7 +13,6 @@ import {
 } from "@/server/actions/records";
 import type { BarberOption, ServiceOption } from "@/server/queries/records";
 import { BarberSelect, PaymentPicker, ResultMessage, ServiceChips, toggleId } from "./fields";
-import { formatPrice } from "./format";
 
 /**
  * Completar un turno: quién atendió (sólo OWNER) + servicios (el del turno preseleccionado; se pueden
