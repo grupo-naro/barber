@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hoy: tres caminos</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #000; --paper: #fff; --wash: #eceef6; --line: #d5d9e6; --mute: #555c72;
+    --royal: #1f2e9a; --red: #d7191f;
+    --pole: repeating-linear-gradient(-45deg, var(--royal) 0 9px, #fff 9px 18px, var(--red) 18px 27px, #fff 27px 36px);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #c9cede; color: var(--ink); font: 400 16px/1.4 Geist, system-ui, sans-serif; }
+  .intro { max-width: 62ch; padding: 32px 24px 8px; margin: 0 auto; }
+  .intro h1 { font: 400 34px/1.05 Anton, sans-serif; margin: 0 0 10px; }
+  .intro p { margin: 0; }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 36px; padding: 28px 20px 56px; }
+  .col { width: 380px; max-width: 100%; }
+  .col > h2 { font: 400 26px/1.1 Anton, sans-serif; margin: 0 0 4px; }
+  .col > p { margin: 0 0 14px; min-height: 68px; }
+  .pick { width: 100%; min-height: 48px; margin-top: 14px; border: 2px solid var(--ink); border-radius: 8px; background: var(--paper); font: 600 16px Geist, sans-serif; cursor: pointer; }
+  .pick.selected { background: var(--ink); color: #fff; }
+  button { font-family: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--royal); outline-offset: 2px; }
+
+  .phone { position: relative; height: 780px; border: 9px solid #000; border-radius: 46px; overflow: hidden; background: var(--wash); display: flex; flex-direction: column; }
+  .scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .top { background: var(--ink); color: #fff; padding: 26px 18px 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .top h3 { font: 400 32px/1 Anton, sans-serif; margin: 0; }
+  .top span { color: #c8cbd8; font-size: 15px; }
+  .av { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; background: none; color: #fff; font-weight: 600; cursor: pointer; }
+  .stripe { height: 8px; background: var(--pole); flex: none; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--paper); border-top: 1px solid var(--line); padding-bottom: 12px; flex: none; }
+  .tabs div { min-height: 50px; display: grid; place-items: center; font-weight: 500; color: var(--mute); }
+  .tabs .on { color: var(--ink); font-weight: 700; box-shadow: inset 0 3px 0 var(--ink); }
+  .cta { background: var(--red); color: #fff; border: 0; border-radius: 10px; min-height: 56px; width: 100%; font-size: 18px; font-weight: 600; cursor: pointer; }
+  .cta:disabled { background: #a9aebf; cursor: default; }
+  .cta:active:not(:disabled) { transform: scale(.985); }
+  .dock { padding: 10px 14px; background: var(--paper); border-top: 1px solid var(--line); flex: none; }
+
+  .day { font-size: 16px; padding: 14px 18px 8px; margin: 0; }
+  .turn { display: grid; grid-template-columns: 62px 1fr auto; gap: 6px; align-items: center; width: 100%; text-align: left; border: 0; background: var(--paper); padding: 13px 18px; min-height: 72px; cursor: pointer; border-bottom: 1px solid var(--line); font-size: 16px; }
+  .turn b { font: 400 25px/1 Anton, sans-serif; }
+  .turn strong { display: block; font-weight: 600; }
+  .turn small { color: var(--mute); font-size: 14px; }
+  .turn.done { background: transparent; } .turn.done b, .turn.done strong { color: var(--mute); font-weight: 400; }
+  .tag { font-size: 14px; font-weight: 600; color: var(--mute); } .tag.free { color: var(--royal); }
+  .now { display: flex; align-items: center; gap: 10px; padding: 0 18px; height: 30px; font-size: 14px; font-weight: 600; }
+  .now i { flex: 1; height: 8px; background: var(--pole); }
+
+  .sheetbg { position: absolute; inset: 0; background: rgb(0 0 0 / .55); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .sheet { position: absolute; inset: auto 0 0; background: var(--paper); border-radius: 20px 20px 0 0; padding: 18px 16px 24px; transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1); visibility: hidden; max-height: 92%; overflow: auto; }
+  .open > .sheetbg { opacity: 1; pointer-events: auto; } .open > .sheet { transform: none; visibility: visible; }
+  .sheet h4 { font: 400 26px/1 Anton, sans-serif; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; }
+  .x { border: 0; background: var(--wash); width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tile { border: 2px solid var(--line); border-radius: 10px; background: var(--paper); min-height: 64px; padding: 9px 11px; text-align: left; cursor: pointer; font-size: 16px; line-height: 1.2; }
+  .tile em { font-style: normal; display: block; color: var(--mute); font-size: 15px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .tile[aria-pressed=true] { background: var(--royal); border-color: var(--royal); color: #fff; } .tile[aria-pressed=true] em { color: #fff; }
+  .pay { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--wash); border-radius: 10px; padding: 4px; margin: 12px 0; }
+  .pay button { border: 0; background: none; min-height: 44px; border-radius: 7px; cursor: pointer; font-size: 15px; font-weight: 500; }
+  .pay [aria-pressed=true] { background: var(--paper); font-weight: 700; box-shadow: 0 0 0 2px var(--ink); }
+  .who { width: 100%; min-height: 48px; border: 2px solid var(--line); border-radius: 10px; padding: 0 12px; font: 400 16px Geist, sans-serif; margin-bottom: 12px; }
+  .toast { position: absolute; left: 14px; right: 14px; top: 102px; background: var(--ink); color: #fff; border-radius: 10px; padding: 14px 16px; font-weight: 600; transform: translateY(-30px); opacity: 0; transition: .25s; pointer-events: none; }
+  .toast.show { transform: none; opacity: 1; }
+
+  .next { background: var(--paper); padding: 13px 18px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+  .next b { font: 400 25px/1 Anton, sans-serif; } .next div { flex: 1; } .next small { color: var(--mute); font-size: 14px; display: block; }
+  .pad { padding: 14px 14px 18px; } .pad .tile { min-height: 84px; font-weight: 600; } .pad .tile em { font-weight: 400; }
+
+  .focus { margin: 16px 14px; background: var(--paper); border: 3px solid var(--ink); border-radius: 16px; padding: 18px; }
+  .focus .h { font: 400 64px/1 Anton, sans-serif; } .focus h4 { font-size: 24px; margin: 4px 0 0; } .focus p { margin: 4px 0; color: var(--mute); }
+  .note { background: var(--wash); border-radius: 8px; padding: 10px 12px; margin: 12px 0 16px !important; color: var(--ink) !important; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .sec { border: 2px solid var(--ink); background: var(--paper); border-radius: 10px; min-height: 48px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .after { display: flex; gap: 8px; overflow-x: auto; padding: 0 14px 14px; scrollbar-width: none; }
+  .after div { flex: none; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; } .after b { font: 400 20px Anton, sans-serif; display: block; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>¿Cómo debería abrir el barbero su día?</h1>
+  <p>Tres formas de armar la pantalla “Hoy” en el celular de Martín, un barbero. Se pueden tocar: probá registrar un corte en cada una. Los nombres y precios son de prueba.</p>
+</div>
+
+<div class="row">
+  <section class="col">
+    <h2>A. Agenda</h2>
+    <p>Abre con los turnos del día. Un botón siempre a mano registra el corte desde una hoja que sube.</p>
+    <div class="phone" id="A">
+      <div class="top"><div><h3>Hoy</h3><span>Martes 24 de noviembre</span></div><button class="av" aria-label="Mi cuenta">MG</button></div>
+      <div class="scroll">
+        <p class="day">Hiciste <b data-n>2</b> cortes por <b data-t>$36.000</b></p>
+        <button class="turn done"><b>10:00</b><span><strong>Diego Paz</strong><small>Corte + barba</small></span><span class="tag">Listo</span></button>
+        <div class="now">11:20 <i></i></div>
+        <button class="turn" data-open="Juan Acosta" data-pre="0"><b>11:00</b><span><strong>Juan Acosta</strong><small>Corte de pelo</small></span><span class="tag">Esperando</span></button>
+        <button class="turn" data-open="Tomás Vera" data-pre="3"><b>12:00</b><span><strong>Tomás Vera</strong><small>Fade / degradé</small></span><span class="tag free">Sin asignar</span></button>
+        <button class="turn" data-open="Bruno Díaz" data-pre="2"><b>12:00</b><span><strong>Bruno Díaz</strong><small>Arreglo de barba</small></span><span class="tag free">Sin asignar</span></button>
+        <button class="turn" data-open="Leo Sosa" data-pre="1"><b>17:00</b><span><strong>Leo Sosa</strong><small>Corte + barba</small></span></button>
+        <button class="turn" data-open="Nahuel Ríos" data-pre="0"><b>18:00</b><span><strong>Nahuel Ríos</strong><small>Corte de pelo</small></span></button>
+      </div>
+      <div class="dock"><button class="cta" data-open="Corte sin turno">Registrar corte</button></div>
+      <div class="tabs"><div class="on">Hoy</div><div>Mi cuenta</div></div>
+      <div class="sheetbg"></div><div class="sheet"></div><div class="toast" role="status"></div>
+    </div>
+    <button class="pick" data-choice="A-agenda" onclick="one(this)">Me gusta la A</button>
+  </section>
+
+  <section class="col">
+    <h2>B. Mostrador</h2>
+    <p>Abre con los servicios, como una caja registradora: tocás el servicio, el pago y listo. La agenda queda abajo.</p>
+    <div class="phone" id="B">
+      <div class="top"><div><h3>Nuevo corte</h3><span>Martes 24 de noviembre</span></div><button class="av" aria-label="Mi cuenta">MG</button></div>
+      <div class="stripe"></div>
+      <div class="scroll">
+        <div class="next"><b>11:00</b><div><strong>Juan Acosta</strong><small>Próximo turno: corte de pelo</small></div></div>
+        <div class="pad"><div class="tiles" data-tiles></div></div>
+        <p class="day">Hiciste <b data-n>2</b> cortes por <b data-t>$36.000</b></p>
+        <button class="turn"><b>12:00</b><span><strong>Tomás Vera</strong><small>Fade / degradé</small></span><span class="tag free">Sin asignar</span></button>
+        <button class="turn"><b>12:00</b><span><strong>Bruno Díaz</strong><small>Arreglo de barba</small></span><span class="tag free">Sin asignar</span></button>
+      </div>
+      <div class="dock"><div class="pay" data-pay></div><button class="cta" data-go disabled>Elegí un servicio</button></div>
+      <div class="tabs"><div class="on">Hoy</div><div>Mi cuenta</div></div>
+      <div class="toast" role="status"></div>
+    </div>
+    <button class="pick" data-choice="B-mostrador" onclick="one(this)">Me gusta la B</button>
+  </section>
+
+  <section class="col">
+    <h2>C. Sillón</h2>
+    <p>Una sola persona por vez, en grande, con sus notas. El resto del día queda en una fila que se desliza.</p>
+    <div class="phone" id="C">
+      <div class="top"><div><h3>Sigue</h3><span>Martes 24 de noviembre</span></div><button class="av" aria-label="Mi cuenta">MG</button></div>
+      <div class="stripe"></div>
+      <div class="scroll">
+        <div class="focus">
+          <div class="h">11:00</div><h4>Juan Acosta</h4><p>Corte de pelo, $15.000</p>
+          <p class="note">2 al costado, tijera arriba. Remolino atrás.</p>
+          <button class="cta" data-open="Juan Acosta" data-pre="0">Completar corte</button>
+          <div class="two"><button class="sec">No vino</button><button class="sec">Llamar</button></div>
+        </div>
+        <p class="day"><b>Después</b></p>
+        <div class="after"><div><b>12:00</b>Tomás Vera</div><div><b>12:00</b>Bruno Díaz</div><div><b>17:00</b>Leo Sosa</div><div><b>18:00</b>Nahuel Ríos</div></div>
+        <p class="day">Hiciste <b data-n>2</b> cortes por <b data-t>$36.000</b></p>
+      </div>
+      <div class="dock"><button class="sec" style="width:100%" data-open="Corte sin turno">Llegó alguien sin turno</button></div>
+      <div class="tabs"><div class="on">Hoy</div><div>Mi cuenta</div></div>
+      <div class="sheetbg"></div><div class="sheet"></div><div class="toast" role="status"></div>
+    </div>
+    <button class="pick" data-choice="C-sillon" onclick="one(this)">Me gusta la C</button>
+  </section>
+</div>
+
+<script>
+const S = [["Corte de pelo",15000],["Corte + barba",21000],["Arreglo de barba",9000],["Fade / degradé",17000],["Corte infantil",12000],["Color / mechas",35000],["Perfilado de cejas",4000]];
+const $ = (n) => "$" + n.toLocaleString("es-AR");
+function one(b) { document.querySelectorAll(".pick").forEach((p) => p.classList.toggle("selected", p === b)); }
+const tilesHtml = () => S.map(([n, p], i) => `<button class="tile" aria-pressed="false" data-i="${i}">${n}<em>${$(p)}</em></button>`).join("");
+const payHtml = () => ["Efectivo", "Transf.", "Tarjeta", "Otro"].map((n, i) => `<button aria-pressed="${!i}">${n}</button>`).join("");
+function wire(root, phone, after) {
+  const go = root.querySelector("[data-go]"), sel = new Set();
+  const paint = () => {
+    root.querySelectorAll(".tile").forEach((t) => t.setAttribute("aria-pressed", sel.has(+t.dataset.i)));
+    const total = [...sel].reduce((a, i) => a + S[i][1], 0);
+    go.disabled = !sel.size; go.textContent = sel.size ? `Registrar ${$(total)}` : "Elegí un servicio"; return total;
+  };
+  root.querySelectorAll(".tile").forEach((t) => t.onclick = () => { const i = +t.dataset.i; sel.has(i) ? sel.delete(i) : sel.add(i); paint(); });
+  root.querySelectorAll(".pay button").forEach((b) => b.onclick = () => root.querySelectorAll(".pay button").forEach((o) => o.setAttribute("aria-pressed", o === b)));
+  go.onclick = () => {
+    const total = paint(); phone.n++; phone.t += total;
+    phone.el.querySelector("[data-n]").textContent = phone.n; phone.el.querySelector("[data-t]").textContent = $(phone.t);
+    const toast = phone.el.querySelector(".toast"); toast.textContent = `Corte ${phone.n} registrado, ${$(total)}`;
+    toast.classList.add("show"); clearTimeout(phone.k); phone.k = setTimeout(() => toast.classList.remove("show"), 2200);
+    sel.clear(); paint(); after && after();
+  };
+  return (pre) => { sel.clear(); if (pre !== undefined) sel.add(+pre); paint(); };
+}
+for (const id of ["A", "B", "C"]) {
+  const el = document.getElementById(id), phone = { el, n: 2, t: 36000 };
+  if (id === "B") { el.querySelector("[data-tiles]").innerHTML = tilesHtml(); el.querySelector("[data-pay]").innerHTML = payHtml(); wire(el, phone); continue; }
+  const sheet = el.querySelector(".sheet"), close = () => el.classList.remove("open");
+  el.querySelector(".sheetbg").onclick = close;
+  el.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => {
+    const walk = b.dataset.open === "Corte sin turno";
+    sheet.innerHTML = `<h4>${b.dataset.open}<button class="x" aria-label="Cerrar">✕</button></h4><div class="tiles">${tilesHtml()}</div><div class="pay">${payHtml()}</div>${walk ? '<input class="who" inputmode="tel" placeholder="Teléfono del cliente (opcional)" aria-label="Teléfono del cliente">' : ""}<button class="cta" data-go disabled></button>`;
+    sheet.querySelector(".x").onclick = close;
+    wire(sheet, phone, () => { close(); if (!walk && id === "C") { const nx = el.querySelector(".after div"); if (nx) { el.querySelector(".h").textContent = nx.querySelector("b").textContent; el.querySelector(".focus h4").textContent = nx.lastChild.textContent; b.dataset.open = nx.lastChild.textContent; el.querySelector(".focus p").textContent = "Corte de pelo, $15.000"; el.querySelector(".note").textContent = "Sin notas todavía."; nx.remove(); } } if (!walk && b.classList.contains("turn")) { b.classList.add("done"); b.lastElementChild.className = "tag"; b.lastElementChild.textContent = "Listo"; } })(b.dataset.pre);
+    el.classList.add("open");
+  });
+}
+</script>
+</body>
+</html>

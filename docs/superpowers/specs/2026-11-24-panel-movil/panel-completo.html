@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel completo, dueño</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #000; --paper: #fff; --wash: #eceef6; --line: #d5d9e6; --mute: #555c72; --a: #1f2e9a; --b: #d7191f;
+    --pole: repeating-linear-gradient(-45deg, var(--a) 0 9px, #fff 9px 18px, var(--b) 18px 27px, #fff 27px 36px); }
+  :root.verde { --a: #1b5e20; --b: #9a6700; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #c9cede; color: var(--ink); font: 400 16px/1.4 Geist, system-ui, sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--a); outline-offset: 2px; }
+  .intro { max-width: 66ch; padding: 32px 24px 0; margin: 0 auto; }
+  .intro h1, .col > h2 { font: 400 34px/1.05 Anton, sans-serif; margin: 0 0 10px; }
+  .intro p { margin: 0 0 16px; }
+  .sw { display: inline-grid; grid-auto-flow: column; gap: 4px; background: #fff; border-radius: 10px; padding: 4px; }
+  .sw button { border: 0; background: none; border-radius: 7px; min-height: 44px; padding: 0 14px; font-weight: 500; }
+  .sw [aria-pressed=true] { background: #000; color: #fff; }
+  .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 36px; padding: 28px 20px 56px; }
+  .col { width: 370px; max-width: 100%; } .col > h2 { font-size: 26px; margin-bottom: 4px; } .col > p { margin: 0 0 14px; min-height: 68px; }
+  .phone { position: relative; height: 760px; border: 9px solid #000; border-radius: 46px; overflow: hidden; background: var(--wash); display: flex; flex-direction: column; }
+  .scroll { flex: 1; overflow-y: auto; scrollbar-width: none; } .scroll::-webkit-scrollbar { display: none; }
+  .top { background: #000; color: #fff; padding: 26px 18px 16px; display: flex; justify-content: space-between; align-items: flex-end; flex: none; min-height: 96px; }
+  .top h3 { font: 400 32px/1 Anton, sans-serif; margin: 0; } .top span { color: #c8cbd8; font-size: 15px; }
+  .av, .add { min-width: 44px; height: 44px; border-radius: 22px; border: 2px solid #fff; background: none; color: #fff; font-weight: 600; padding: 0 10px; }
+  .add { border-radius: 9px; background: #fff; color: #000; padding: 0 14px; }
+  .tabs { display: grid; grid-template-columns: repeat(5, 1fr); background: #fff; border-top: 1px solid var(--line); padding-bottom: 12px; flex: none; }
+  .tabs div { min-height: 54px; display: grid; place-content: center; justify-items: center; font-size: 13px; font-weight: 500; color: var(--mute); gap: 2px; }
+  .tabs svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .tabs .on { color: #000; font-weight: 700; box-shadow: inset 0 3px 0 #000; }
+  .cta { background: var(--b); color: #fff; border: 0; border-radius: 10px; min-height: 56px; width: 100%; font-size: 18px; font-weight: 600; }
+  .ghost { border: 2px solid #000; background: #fff; border-radius: 10px; min-height: 48px; width: 100%; font-weight: 600; }
+  .dock { padding: 10px 14px; background: #fff; border-top: 1px solid var(--line); flex: none; }
+  .say { padding: 14px 18px 8px; margin: 0; }
+  .item { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: #fff; padding: 12px 18px; min-height: 66px; }
+  .item.t { grid-template-columns: 62px 1fr auto; }
+  .item strong { display: block; font-weight: 600; } .item small { color: var(--mute); font-size: 14px; }
+  .item b.n { font: 400 25px/1 Anton, sans-serif; } .item .m { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .done { background: transparent; } .done strong, .done b.n { color: var(--mute); font-weight: 400; }
+  .tag { font-size: 14px; font-weight: 600; color: var(--mute); } .tag.free { color: var(--a); } .tag.warn { color: var(--b); }
+  .now { display: flex; align-items: center; gap: 10px; padding: 0 18px; height: 30px; font-size: 14px; font-weight: 600; } .now i { flex: 1; height: 8px; background: var(--pole); }
+  .days { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; background: #fff; border-bottom: 1px solid var(--line); }
+  .days button { border: 0; background: none; min-height: 52px; font-size: 22px; } .days div { text-align: center; font-weight: 600; } .days button:disabled { color: #b9bed0; }
+  .sum { background: var(--a); color: #fff; padding: 18px; } .sum .big { font: 400 54px/1 Anton, sans-serif; } .sum p { margin: 4px 0 0; }
+  .mix { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 14px 0 10px; background: rgb(255 255 255 / .25); } .mix i { display: block; }
+  .leg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; font-size: 15px; } .leg div { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .leg span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; background: var(--c); }
+  .sheetbg { position: absolute; inset: 0; background: rgb(0 0 0 / .55); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .sheet { position: absolute; inset: auto 0 0; background: #fff; border-radius: 20px 20px 0 0; padding: 18px 16px 24px; transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1); visibility: hidden; max-height: 92%; overflow: auto; }
+  .open > .sheetbg { opacity: 1; pointer-events: auto; } .open > .sheet { transform: none; visibility: visible; }
+  .sheet h4 { font: 400 26px/1 Anton, sans-serif; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; }
+  .x { border: 0; background: var(--wash); width: 44px; height: 44px; border-radius: 50%; font-size: 18px; }
+  .fld { display: block; margin-bottom: 12px; font-weight: 500; } .fld input, .fld select { display: block; width: 100%; min-height: 48px; border: 2px solid var(--line); border-radius: 10px; padding: 0 12px; font: 400 16px Geist, sans-serif; margin-top: 4px; background: #fff; color: #000; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .tile { border: 2px solid var(--line); border-radius: 10px; background: #fff; min-height: 60px; padding: 8px 11px; text-align: left; line-height: 1.2; } .tile em { display: block; font-style: normal; color: var(--mute); font-size: 15px; } .tile[aria-pressed=true], .tile[aria-pressed=true] em { background: var(--a); border-color: var(--a); color: #fff; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--wash); border-radius: 10px; padding: 4px; margin-bottom: 12px; } .seg button { border: 0; background: none; min-height: 44px; border-radius: 7px; font-size: 15px; } .seg [aria-pressed=true] { background: #fff; font-weight: 700; box-shadow: 0 0 0 2px #000; }
+  .stack { display: grid; gap: 8px; } .quiet { border: 0; background: none; min-height: 44px; color: var(--b); font-weight: 600; width: 100%; }
+  .grp { margin-top: 14px; border-top: 1px solid var(--line); }
+  .chev::after { content: ""; display: block; width: 9px; height: 9px; border: solid var(--mute); border-width: 2px 2px 0 0; transform: rotate(45deg); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>El panel completo, con el login del dueño</h1>
+  <p>Las cinco secciones con el camino A. Lo que se abre (un turno, un servicio, un barbero, cerrar la caja) sube desde abajo como una hoja, así no perdés de vista dónde estabas. Los datos son de prueba.</p>
+  <div class="sw" role="group" aria-label="Colores de la barbería"><button aria-pressed="true" data-c="">Azul y rojo</button><button aria-pressed="false" data-c="verde">Verde y dorado</button></div>
+</div>
+<div class="row">
+  <section class="col"><h2>Hoy</h2><p>Igual que el del barbero, pero con todos los turnos, quién atendió y lo facturado por la barbería.</p>
+    <div class="phone"><div class="top"><div><h3>Hoy</h3><span>Martes 24 de noviembre</span></div><button class="av" data-s="cuenta" aria-label="Mi cuenta">NG</button></div>
+      <div class="scroll"><p class="say">La barbería lleva <b>5</b> cortes por <b>$88.000</b></p>
+        <button class="item t done"><b class="n">10:00</b><span><strong>Diego Paz</strong><small>Atendió Martín</small></span><span class="tag">Listo</span></button>
+        <div class="now">11:20 <i></i></div>
+        <button class="item t" data-s="turno"><b class="n">11:00</b><span><strong>Juan Acosta</strong><small>Corte de pelo</small></span><span class="tag free">Sin asignar</span></button>
+        <button class="item t" data-s="turno"><b class="n">12:00</b><span><strong>Tomás Vera</strong><small>Fade / degradé</small></span><span class="tag free">Sin asignar</span></button>
+        <button class="item t" data-s="turno"><b class="n">17:00</b><span><strong>Leo Sosa</strong><small>Corte + barba</small></span><span class="tag free">Sin asignar</span></button>
+      </div><div class="dock"><button class="cta" data-s="corte">Registrar corte</button></div></div></section>
+
+  <section class="col"><h2>Caja</h2><p>El total primero. Cambiás de día con las flechas. Cerrar pide confirmación y muestra qué se va a guardar.</p>
+    <div class="phone"><div class="top"><div><h3>Caja</h3><span>Abierta</span></div></div>
+      <div class="days"><button aria-label="Día anterior">‹</button><div>Hoy, martes 24</div><button aria-label="Día siguiente" disabled>›</button></div>
+      <div class="scroll"><div class="sum"><div class="big">$88.000</div><p>5 cortes</p><div class="mix"><i style="width:55%;background:#fff"></i><i style="width:30%;background:#b9c2ff"></i><i style="width:15%;background:#8089c9"></i></div>
+          <div class="leg"><div><span style="--c:#fff">Efectivo</span>$48.000</div><div><span style="--c:#b9c2ff">Transf.</span>$26.000</div><div><span style="--c:#8089c9">Tarjeta</span>$14.000</div><div><span style="--c:transparent">Otro</span>$0</div></div></div>
+        <p class="say"><b>Para los barberos</b></p>
+        <button class="item"><span><strong>Martín</strong><small>50% de $36.000</small></span><span class="m">$18.000</span></button>
+        <button class="item"><span><strong>Lucas</strong><small>40% de $30.000</small></span><span class="m">$12.000</span></button>
+        <button class="item"><span><strong>Nico</strong><small>Alquiler, facturó $22.000</small></span><span class="m">$22.000</span></button>
+      </div><div class="dock"><button class="cta" data-s="cerrar">Cerrar la caja</button></div></div></section>
+
+  <section class="col"><h2>Servicios</h2><p>Lista compacta: entran todos en una pantalla. Desactivar deja de estar en rojo en cada fila y pasa adentro.</p>
+    <div class="phone"><div class="top"><div><h3>Servicios</h3><span>7 activos</span></div><button class="add" data-s="servicio">Nuevo</button></div>
+      <div class="scroll" data-serv></div><div class="dock"><button class="ghost" data-s="precios">Actualizar precios</button></div></div></section>
+
+  <section class="col"><h2>Barberos</h2><p>Quién está activo y qué acuerdo tiene. Al tocar uno se edita; invitar está siempre arriba.</p>
+    <div class="phone"><div class="top"><div><h3>Barberos</h3><span>3 activos, 1 invitado</span></div><button class="add" data-s="invitar">Invitar</button></div>
+      <div class="scroll"><button class="item" data-s="barbero"><span><strong>Martín Gómez</strong><small>Se lleva el 50%</small></span><span class="tag">Activo</span></button>
+        <button class="item" data-s="barbero"><span><strong>Lucas Fernández</strong><small>Se lleva el 40%</small></span><span class="tag">Activo</span></button>
+        <button class="item" data-s="barbero"><span><strong>Nicolás Romero</strong><small>Paga alquiler de silla</small></span><span class="tag">Activo</span></button>
+        <button class="item" data-s="invitar"><span><strong>Ezequiel Luna</strong><small>Todavía no aceptó la invitación</small></span><span class="tag warn">Pendiente</span></button></div></div></section>
+
+  <section class="col"><h2>Ajustes</h2><p>De un rollo de cinco pantallas a un menú. Cada tema se abre en su propia pantalla y se guarda por separado.</p>
+    <div class="phone"><div class="top"><div><h3>Ajustes</h3><span>Barbería Demo</span></div></div>
+      <div class="scroll"><button class="item"><span><strong>Datos de la barbería</strong><small>Nombre, dirección y WhatsApp</small></span><span class="chev"></span></button>
+        <button class="item"><span><strong>Horarios</strong><small>Lun a sáb, 10 a 14 y 17 a 21</small></span><span class="chev"></span></button>
+        <div class="grp"></div><button class="item"><span><strong>Fotos y redes</strong><small>Logo, portada y 12 trabajos</small></span><span class="chev"></span></button>
+        <button class="item"><span><strong>Colores</strong><small data-col>Azul y rojo</small></span><span class="chev"></span></button>
+        <button class="item"><span><strong>Ver mi página</strong><small>/barberia-demo</small></span><span class="chev"></span></button>
+        <div class="grp"></div><button class="item" data-s="cuenta"><span><strong>Mi cuenta</strong><small>Contraseña y cerrar sesión</small></span><span class="chev"></span></button></div></div></section>
+</div>
+<script>
+const S = [["Corte de pelo","$15.000","30 min"],["Corte + barba","$21.000","45 min"],["Arreglo de barba","$9.000","20 min"],["Fade / degradé","$17.000","45 min"],["Corte infantil","$12.000","30 min"],["Color / mechas","$35.000","1 h 30"],["Perfilado de cejas","$4.000","15 min"]];
+document.querySelector("[data-serv]").innerHTML = S.map((s) => `<button class="item" data-s="servicio"><span><strong>${s[0]}</strong><small>${s[2]}</small></span><span class="m">${s[1]}</span></button>`).join("");
+const ic = { Hoy: '<path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/>', Caja: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20M17 15h1"/>', Servicios: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>', Barberos: '<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.9"/>', Ajustes: '<path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>' };
+const tiles = () => `<div class="tiles">${S.slice(0, 6).map((s, i) => `<button class="tile" aria-pressed="${!i}">${s[0]}<em>${s[1]}</em></button>`).join("")}</div><div class="seg">${["Efectivo","Transf.","Tarjeta","Otro"].map((n, i) => `<button aria-pressed="${!i}">${n}</button>`).join("")}</div>`;
+const who = '<label class="fld">¿Quién atendió?<select><option>Nahuel (vos)</option><option>Martín</option><option>Lucas</option><option>Nico</option></select></label>';
+const sheets = {
+  corte: ["Corte sin turno", tiles() + who + '<button class="cta" data-x>Registrar $15.000</button>'],
+  turno: ["Juan Acosta", '<p style="margin:0 0 12px">Nota: 2 al costado, tijera arriba.</p>' + tiles() + who + '<div class="stack"><button class="cta" data-x>Completar $15.000</button><button class="ghost">Llamar</button><button class="quiet" data-x>No vino o canceló</button></div>'],
+  cerrar: ["Cerrar la caja de hoy", '<p style="margin:0 0 14px">Se guardan 5 cortes por <b>$88.000</b> y lo que le toca a cada barbero. Después no se puede modificar ni registrar más cortes hoy.</p><div class="stack"><button class="cta" data-x>Cerrar la caja</button><button class="ghost" data-x>Todavía no</button></div>'],
+  servicio: ["Corte de pelo", '<label class="fld">Nombre<input value="Corte de pelo"></label><label class="fld">Precio<input value="15.000" inputmode="numeric"></label><label class="fld">Duración en minutos<input value="30" inputmode="numeric"></label><div class="stack"><button class="cta" data-x>Guardar</button><button class="quiet" data-x>Desactivar servicio</button></div>'],
+  precios: ["Actualizar precios", '<label class="fld">Aumento en porcentaje<input value="10" inputmode="numeric"></label><label class="fld">Redondear a<select><option>$500</option><option>$1.000</option></select></label><button class="cta">Ver cómo quedan</button>'],
+  invitar: ["Invitar barbero", '<label class="fld">Nombre<input></label><label class="fld">Email<input inputmode="email"></label><button class="cta">Crear invitación</button>'],
+  barbero: ["Martín Gómez", '<label class="fld">Nombre<input value="Martín Gómez"></label><label class="fld">Acuerdo<select><option>Porcentaje</option><option>Alquiler de silla</option><option>Sin liquidación</option></select></label><label class="fld">Porcentaje<input value="50" inputmode="numeric"></label><button class="cta" data-x>Guardar</button>'],
+  cuenta: ["Mi cuenta", '<div class="stack"><button class="ghost">Cambiar contraseña</button><button class="quiet">Cerrar sesión</button></div>'],
+};
+document.querySelectorAll(".phone").forEach((ph, i) => {
+  ph.insertAdjacentHTML("beforeend", `<div class="tabs">${Object.keys(ic).map((k, j) => `<div class="${j === i ? "on" : ""}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic[k]}</svg>${k}</div>`).join("")}</div><div class="sheetbg"></div><div class="sheet"></div>`);
+  ph.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-s]"), tog = e.target.closest(".tile, .seg button");
+    if (tog) { if (tog.classList.contains("tile")) tog.setAttribute("aria-pressed", tog.getAttribute("aria-pressed") !== "true"); else tog.parentNode.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === tog)); }
+    else if (s) { const [t, h] = sheets[s.dataset.s]; const name = s.querySelector("strong")?.textContent; const title = ["turno", "servicio", "barbero"].includes(s.dataset.s) ? (name || "Nuevo servicio") : t; ph.querySelector(".sheet").innerHTML = `<h4>${title}<button class="x" data-x aria-label="Cerrar">✕</button></h4>${h}`; if (name) { const inp = ph.querySelector('.sheet .fld input'); if (inp && ["servicio", "barbero"].includes(s.dataset.s)) inp.value = name; } ph.classList.add("open"); }
+    else if (e.target.closest("[data-x]") || e.target.classList.contains("sheetbg")) ph.classList.remove("open");
+  });
+});
+document.querySelectorAll(".sw button").forEach((b) => b.onclick = () => { document.documentElement.className = b.dataset.c; document.querySelectorAll(".sw button").forEach((o) => o.setAttribute("aria-pressed", o === b)); document.querySelector("[data-col]").textContent = b.textContent; });
+</script>
+</body>
+</html>
