@@ -1756,8 +1756,10 @@ async function recorridos() {
       const label = reducedMotion ? "movimiento reducido" : "con movimiento";
       const page = await open({ token: OWNER, ...SMALL, reducedMotion });
       await page.go("/dashboard/today");
-      const behind = await page.ev(`(() => { scrollTo(0, 120); return scrollY; })()`);
+      await page.ev("scrollTo(0, 120)");
       await openWalkIn(page);
+      // Con la hoja abierta: tocar el botón (fijo abajo) puede mover la página desde el script.
+      const behind = await page.ev("scrollY");
       const scroller = `__dialog().querySelector("form").parentElement`;
       const toggle = `__text("Cliente*", '[role="dialog"] button')`;
       const fieldsInView = `["phone", "name"].every((name) => {
@@ -1792,7 +1794,8 @@ async function recorridos() {
       check(await page.ev(fieldsInView), `${label}: y ahí quedan`);
       check((await page.ev(`${scroller}.scrollTop`)) > 0, `${label}: la hoja se movió`);
       check(await page.ev(`!/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)`), `${label}: no enfoca ningún campo`);
-      check((await page.ev("scrollY")) === behind, `${label}: la página de atrás no se mueve`);
+      const after = await page.ev("scrollY");
+      check(after === behind, `${label}: la página de atrás no se mueve`, [behind, after]);
       await page.shot(`cliente-a-la-vista-${reducedMotion ? "reducido" : "normal"}`);
 
       // Plegar no scrollea (salvo el tope que pone el propio navegador al achicarse el contenido).
