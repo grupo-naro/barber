@@ -2,19 +2,22 @@ import { describe, expect, it } from "vitest";
 import { isNavItemActive, navItemsForRole } from "./dashboard-nav";
 
 describe("navItemsForRole", () => {
-  it("OWNER ve Hoy, Servicios, Caja, Barberos y Ajustes en ese orden", () => {
-    expect(navItemsForRole("OWNER")).toEqual([
-      { href: "/dashboard/today", label: "Hoy" },
-      { href: "/dashboard/services", label: "Servicios" },
-      { href: "/dashboard/cash", label: "Caja" },
-      { href: "/dashboard/barbers", label: "Barberos" },
-      { href: "/dashboard/settings", label: "Ajustes" },
+  it("orden del dueño", () => {
+    expect(navItemsForRole("OWNER").map((i) => i.label)).toEqual(["Hoy", "Caja", "Servicios", "Barberos", "Ajustes"]);
+    expect(navItemsForRole("OWNER").map((i) => i.href)).toEqual([
+      "/dashboard/today",
+      "/dashboard/cash",
+      "/dashboard/services",
+      "/dashboard/barbers",
+      "/dashboard/settings",
     ]);
   });
 
-  it("BARBER ve solo Hoy", () => {
-    expect(navItemsForRole("BARBER")).toEqual([{ href: "/dashboard/today", label: "Hoy" }]);
-    expect(navItemsForRole("BARBER").some((item) => item.href === "/dashboard/barbers")).toBe(false);
+  it("barbero", () => {
+    expect(navItemsForRole("BARBER")).toEqual([
+      { href: "/dashboard/today", label: "Hoy" },
+      { href: "/dashboard/account", label: "Mi cuenta" },
+    ]);
   });
 });
 
@@ -41,9 +44,14 @@ describe("isNavItemActive", () => {
     expect(activeLabels("/dashboard")).toEqual([]);
   });
 
-  it("exactamente un ítem activo por pathname de sección", () => {
-    for (const item of items) {
-      expect(activeLabels(item.href)).toEqual([item.label]);
+  it.each(["OWNER", "BARBER"] as const)("exactamente un ítem activo por pathname de sección (%s)", (role) => {
+    const own = navItemsForRole(role);
+    for (const item of own) {
+      expect(own.filter((i) => isNavItemActive(item.href, i.href)).map((i) => i.label)).toEqual([item.label]);
     }
+  });
+
+  it("Mi cuenta no activa ningún ítem del dueño (no tiene esa pestaña)", () => {
+    expect(activeLabels("/dashboard/account")).toEqual([]);
   });
 });

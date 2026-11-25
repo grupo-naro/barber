@@ -5,6 +5,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import {
   adjustmentError,
@@ -16,14 +17,14 @@ import {
   type Rounding,
 } from "@/lib/pricing";
 import { applyBulkPriceUpdate, type BulkPriceState } from "@/server/actions/services";
-import { formatPrice, nativeControlClass } from "./format";
+import { nativeControlClass } from "./format";
 
 type BulkService = { id: string; name: string; price: string };
 type Direction = "up" | "down";
 type Scope = "all" | "selected";
 
 const chipClass =
-  "flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium transition-colors hover:bg-muted has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50";
+  "flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50";
 
 function Choice<T extends string>({
   name,

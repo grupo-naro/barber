@@ -1,0 +1,153 @@
+/*
+ * Tema del panel interno. Pisa los tokens de shadcn dentro de `.panel-theme`, así Button/Badge/Card heredan
+ * el estilo sin tocar `globals.css` ni `src/components/ui/**`. Este archivo es CSS global: TODO selector va
+ * bajo `.panel-theme` para no filtrarse a la landing ni a `/admin`.
+ *
+ * `--brand`, `--primary`, `--pole-a` y `--pole-b` los pone el layout con los colores de la barbería
+ * (`panelThemeVars`); acá van los originales, para el esqueleto inicial.
+ *
+ * Contraste (AA): `--brand` y `--primary` como color de TEXTO van solo sobre blanco (`--card`); sobre
+ * `--background` no siempre llegan a 4.5:1. `--muted-foreground` da 5.74:1 sobre `--background`.
+ */
+.panel-theme {
+  --brand: #1f2e9a;
+  --primary: #d7191f;
+  --pole-a: #1f2e9a;
+  --pole-b: #d7191f;
+
+  --background: #eceef6;
+  --foreground: #000;
+  --card: #fff;
+  --card-foreground: #000;
+  --popover: #fff;
+  --popover-foreground: #000;
+  --muted: #eceef6;
+  --muted-foreground: #555c72;
+  --secondary: #eceef6;
+  --secondary-foreground: #000;
+  --accent: #eceef6;
+  --accent-foreground: #000;
+  --border: #d5d9e6;
+  --input: #d5d9e6;
+  --primary-foreground: #fff;
+  --destructive: #b42318;
+  --warning: #8a5300;
+  --ring: var(--brand);
+
+  /* Encabezado negro de cada pantalla. */
+  --panel-header: #000;
+  --panel-header-foreground: #fff;
+  --panel-header-muted: #c8cbd8;
+
+  /* Alto de la barra fija de abajo, con el área segura. Desde 640 px la barra va arriba, en el flujo. */
+  --panel-bar: calc(3.5rem + 1px + env(safe-area-inset-bottom, 0px));
+  /* Área segura de arriba: la respeta el primero de la pantalla (aviso, o encabezado). */
+  --panel-safe-top: env(safe-area-inset-top, 0px);
+
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+}
+
+@media (min-width: 640px) {
+  .panel-theme {
+    --panel-bar: 0px;
+  }
+
+  /* La barra queda arriba del encabezado: es ella (o el aviso) la que respeta el área segura. */
+  .panel-theme .panel-header {
+    --panel-safe-top: 0px;
+  }
+}
+
+.panel-theme[data-notice] .panel-header,
+.panel-theme[data-notice] .panel-nav {
+  --panel-safe-top: 0px;
+}
+
+/* Títulos y horas. Nada más. */
+.panel-theme .panel-display {
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+  font-weight: 400;
+}
+
+/* Franja del poste: solo en la línea de ahora. */
+.panel-theme .pole {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--pole-a) 0 9px,
+    #fff 9px 18px,
+    var(--pole-b) 18px 27px,
+    #fff 27px 36px
+  );
+}
+
+/* Foco visible de los enlaces y botones propios del panel (los de shadcn ya traen su anillo). */
+.panel-theme :is(a, button, summary):not([data-slot]):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+.panel-theme .panel-tab-link:focus-visible,
+.panel-theme .panel-row:focus-visible {
+  outline-offset: -3px;
+}
+.panel-theme .panel-header :is(a, button):focus-visible {
+  outline: 3px solid var(--panel-header-foreground);
+  outline-offset: 2px;
+}
+
+/* Al llegar con el teclado, el control no queda tapado por la barra (ni por el botón fijo de Hoy). */
+.panel-theme main :is(a, button, input, select, textarea, summary) {
+  scroll-margin-bottom: calc(var(--panel-bar) + 1rem);
+}
+.panel-theme main .panel-row {
+  scroll-margin-bottom: calc(var(--panel-bar) + 6rem);
+}
+
+/* Los botones de shadcn aclaran la acción al pasar el mouse y el blanco deja de leerse: se oscurece. */
+.panel-theme .hover\:bg-primary\/80:hover {
+  background-color: color-mix(in srgb, var(--primary), #000 14%);
+}
+/* La acción peligrosa es texto sin fondo: no se confunde con el botón de acción cuando la marca es roja. */
+.panel-theme button.bg-destructive\/10 {
+  background-color: transparent;
+  font-weight: 600;
+}
+.panel-theme button.bg-destructive\/10:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+/* Botones y enlaces con borde: blancos, para que se lean como controles sobre el fondo. */
+.panel-theme :is(a, button).bg-background:not(:hover) {
+  background-color: var(--card);
+}
+
+/* Barra: al tocar, el destino se marca ya (`useLinkStatus`) y el actual se apaga. Nada cambia de tamaño. */
+.panel-theme .panel-tab {
+  color: var(--muted-foreground);
+}
+.panel-theme .panel-tab .panel-tab-line {
+  opacity: 0;
+}
+.panel-theme .panel-tab[data-active],
+.panel-theme .panel-tab[data-pending] {
+  color: var(--foreground);
+}
+.panel-theme .panel-tab[data-active] .panel-tab-line,
+.panel-theme .panel-tab[data-pending] .panel-tab-line {
+  opacity: 1;
+}
+.panel-theme .panel-nav:has([data-pending]) .panel-tab[data-active]:not([data-pending]) {
+  color: var(--muted-foreground);
+}
+.panel-theme .panel-nav:has([data-pending]) .panel-tab[data-active]:not([data-pending]) .panel-tab-line {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-theme *,
+  .panel-theme *::before,
+  .panel-theme *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
