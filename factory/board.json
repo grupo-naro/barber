@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-25T00:48:35.653Z",
+  "updated": "2026-11-25T00:50:22.483Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -900,7 +900,7 @@
         "src/app/(dashboard)/dashboard/settings/page.tsx",
         "scripts/panel-check.mjs"
       ],
-      "stage": "needs-human",
+      "stage": "done",
       "slot": null,
       "round": 1,
       "reviews": {
@@ -916,7 +916,7 @@
       ],
       "builder": "builder-030-mobile-panel-today",
       "decision": "ESCALATE",
-      "note": "4 PASS, pero el approver reprodujo AC-6c: registrar muy rápido tras escribir el teléfono deja al cliente anterior en el corte siguiente. Recomienda rework chico."
+      "note": "mergeado a main (aprobado por humano tras ESCALATE; bug menor anotado en 031)"
     }
   ]
 }
