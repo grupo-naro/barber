@@ -1,15 +1,19 @@
 // Mediciones, capturas y recorridos del panel en Chrome (DevTools Protocol, sin dependencias nuevas).
 //
-//   node scripts/panel-check.mjs --base <url> --owner <token> --barber <token> --out <dir> [--only <sección>]
+//   PANEL_CHECK_OWNER_TOKEN=… PANEL_CHECK_BARBER_TOKEN=… \
+//     node scripts/panel-check.mjs --base http://localhost:3001 --out <dir> [--only <sección>]
 //
-// - Corre contra `pnpm build && pnpm start`, con la base descartable del worktree: lee `DATABASE_URL` de `.env` y se
-//   niega a correr si el nombre de la base no empieza con `barber_job_`.
-// - `--owner` y `--barber` son cookies de sesión (`signSession`) del dueño y de un barbero de la MISMA barbería del
-//   seed. El script borra y recrea los turnos y cortes de HOY de esa barbería: no depende de la hora ni del día.
+// - Corre contra `pnpm build && pnpm start` en esta máquina (`--base` solo acepta localhost), con la base descartable
+//   del worktree: lee `DATABASE_URL` de `.env` y se niega a correr si la base no está en esta máquina o si su nombre no
+//   empieza con `barber_job_`.
+// - Los tokens son cookies de sesión (`signSession`) del dueño y de un barbero de la MISMA barbería del seed. Van por
+//   entorno (los argumentos se ven en la lista de procesos) y nunca se imprimen. El script borra y recrea los turnos y
+//   cortes de HOY de esa barbería: no depende de la hora ni del día.
 // - Chrome por `CHROME_PATH`. El tamaño se fija con `Emulation.setDeviceMetricsOverride` (en Windows `--window-size`
-//   no baja de unos 500 px). Perfil y puerto propios; todo termina con un timeout, también si falla.
+//   no baja de unos 500 px). Perfil y puerto propios; todo termina con un timeout (`PANEL_CHECK_TIMEOUT_MS`), y al
+//   terminar por cualquier camino se cierra Chrome y se borra el perfil.
 // - Sale con 1 si algo falla.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -18,31 +22,78 @@ import { parseArgs } from "node:util";
 import { config } from "dotenv";
 import pg from "pg";
 
-const GLOBAL_TIMEOUT_MS = 12 * 60_000;
+const DEFAULT_TIMEOUT_MS = 12 * 60_000;
 const COMMAND_TIMEOUT_MS = 30_000;
 const TZ = "America/Argentina/Buenos_Aires";
 const GREEN = { primary: "#1b5e20", secondary: "#9a6700" };
 const SLOW_MS = 2000;
 
-const { values: args } = parseArgs({
-  options: {
-    base: { type: "string" },
-    owner: { type: "string" },
-    barber: { type: "string" },
-    out: { type: "string" },
-    only: { type: "string" },
-  },
-});
-for (const name of ["base", "owner", "barber", "out"]) {
-  if (!args[name]) fail(`Falta --${name}.`);
-}
-const base = args.base.replace(/\/$/, "");
-mkdirSync(args.out, { recursive: true });
-
 function fail(message) {
   console.error(message);
   process.exit(1);
 }
+
+// Guardas: todas corren antes de abrir Chrome y de conectarse a la base, y ninguna repite lo que recibió (puede
+// traer un token o una clave).
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+const TOKEN_VARS = { owner: "PANEL_CHECK_OWNER_TOKEN", barber: "PANEL_CHECK_BARBER_TOKEN" };
+
+function readArgs() {
+  try {
+    return parseArgs({
+      options: { base: { type: "string" }, out: { type: "string" }, only: { type: "string" } },
+    }).values;
+  } catch {
+    return fail(
+      `Argumentos inválidos: solo --base, --out y --only. Los tokens van en ${TOKEN_VARS.owner} y ${TOKEN_VARS.barber}.`,
+    );
+  }
+}
+
+function readBase(value) {
+  const url = URL.canParse(value) ? new URL(value) : null;
+  if (
+    !url ||
+    !["http:", "https:"].includes(url.protocol) ||
+    !LOCAL_HOSTS.includes(url.hostname) ||
+    url.username !== "" ||
+    url.password !== ""
+  ) {
+    fail("Me niego a correr: --base tiene que ser http(s)://localhost, 127.0.0.1 o [::1].");
+  }
+  return url.origin;
+}
+
+function readToken(name) {
+  const token = process.env[name]?.trim();
+  if (!token) fail(`Falta ${name}.`);
+  let data = null;
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3 && parts.every((part) => /^[\w-]+$/.test(part))) {
+      data = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    }
+  } catch {
+    // El mensaje del error de JSON trae un pedazo del token: no se muestra.
+  }
+  if (![data?.userId, data?.barbershopId, data?.role].every((claim) => typeof claim === "string" && claim !== "")) {
+    fail(`${name} no es un token de sesión bien formado.`);
+  }
+  return { token, claims: data };
+}
+
+function readTimeout(value) {
+  if (value === undefined) return DEFAULT_TIMEOUT_MS;
+  const ms = Number(value);
+  if (!Number.isInteger(ms) || ms <= 0 || ms > 2 ** 31 - 1) fail("PANEL_CHECK_TIMEOUT_MS tiene que ser un entero positivo.");
+  return ms;
+}
+
+const args = readArgs();
+for (const name of ["base", "out"]) {
+  if (!args[name]) fail(`Falta --${name}.`);
+}
+const base = readBase(args.base);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -51,26 +102,32 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ---------------------------------------------------------------------------
 
 config({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env"), quiet: true });
-const databaseUrl = process.env.DATABASE_URL ?? "";
-let databaseName = "";
-try {
-  databaseName = new URL(databaseUrl).pathname.slice(1);
-} catch {
-  fail("DATABASE_URL inválida.");
-}
-if (!databaseName.startsWith("barber_job_")) {
-  fail(`Me niego a correr: la base "${databaseName}" no empieza con "barber_job_".`);
+/** Cliente sin conectar. Se miran el host y la base que va a usar `pg`: `?host=` en la URL le gana al de la URL. */
+function readDatabase(connectionString) {
+  if (!connectionString) fail("Falta DATABASE_URL.");
+  let db;
+  try {
+    db = new pg.Client({ connectionString });
+  } catch {
+    fail("DATABASE_URL inválida.");
+  }
+  if (![...LOCAL_HOSTS, "::1"].includes(db.host)) fail("Me niego a correr: la base no está en esta máquina (localhost).");
+  if (!db.database?.startsWith("barber_job_")) {
+    fail(`Me niego a correr: la base "${db.database}" no empieza con "barber_job_".`);
+  }
+  return db;
 }
 
-const client = new pg.Client({ connectionString: databaseUrl });
-const q = async (text, params = []) => (await client.query(text, params)).rows;
-
-const claims = (token) => JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
-const owner = claims(args.owner);
-const barber = claims(args.barber);
+const client = readDatabase(process.env.DATABASE_URL);
+const { token: OWNER, claims: owner } = readToken(TOKEN_VARS.owner);
+const { token: BARBER, claims: barber } = readToken(TOKEN_VARS.barber);
 if (owner.role !== "OWNER" || barber.role !== "BARBER" || owner.barbershopId !== barber.barbershopId) {
   fail("Los tokens tienen que ser del dueño y de un barbero de la misma barbería.");
 }
+const timeoutMs = readTimeout(process.env.PANEL_CHECK_TIMEOUT_MS);
+mkdirSync(args.out, { recursive: true });
+
+const q = async (text, params = []) => (await client.query(text, params)).rows;
 const shop = owner.barbershopId;
 const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 const LONG_NAME = "Maximiliano Bartolomé Fernández de la Vega y Etcheverry Soto";
@@ -171,6 +228,24 @@ const setBilling = (enabled, daysFromNow, extra = {}) =>
   );
 const countRecords = async () =>
   (await q(`select count(*)::int n from "ServiceRecord" where "barbershopId"=$1 and "businessDate"=$2::date`, [shop, today]))[0].n;
+/** Lo que un recorrido cambió y la base descartable no recupera sola. Se deshace también si se corta la corrida. */
+let undo = null;
+let stopping = false;
+/** Cambia el nombre del barbero mientras dura `run`. */
+async function withBarberName(run) {
+  const [{ name: original }] = await q(`select name from "User" where id=$1`, [barber.userId]);
+  const rename = (name) => q(`update "User" set name=$2 where id=$1`, [barber.userId, name]);
+  undo = () => rename(original);
+  try {
+    await run(async (name) => {
+      if (stopping) throw new Error("corrida cortada");
+      await rename(name);
+    });
+  } finally {
+    await undo();
+    undo = null;
+  }
+}
 const statusOf = async (id) => (await q(`select status from "Appointment" where id=$1`, [id]))[0]?.status;
 
 // ---------------------------------------------------------------------------
@@ -187,8 +262,60 @@ const CHROME =
   ].find(existsSync);
 if (!CHROME) fail("No encontré Chrome: definí CHROME_PATH.");
 
-const profile = mkdtempSync(join(tmpdir(), "panel-check-"));
-const chrome = spawn(
+let chrome = null;
+let profile = null;
+
+/** Cierra el Chrome propio (con sus hijos, por PID) y borra su perfil. Sincrónica: corre siempre, al salir. */
+function cleanup() {
+  if (chrome?.pid && chrome.exitCode === null && chrome.signalCode === null) {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore", timeout: 10_000 });
+    } else {
+      try {
+        process.kill(-chrome.pid, "SIGKILL"); // Todo su grupo (`detached`).
+      } catch {
+        // Ya terminó.
+      }
+    }
+  }
+  // En Windows los archivos quedan tomados un instante después de cerrar Chrome.
+  for (let i = 0; profile && existsSync(profile); i++) {
+    try {
+      rmSync(profile, { recursive: true, force: true });
+    } catch {
+      if (i === 60) {
+        console.error(`No pude borrar el perfil ${profile}.`);
+        break;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+}
+process.on("exit", cleanup);
+
+/** Corte desde afuera: intenta deshacer lo que cambió (con límite) y sale; `cleanup` hace el resto. */
+function stop(message) {
+  if (stopping) process.exit(1); // Segundo Ctrl+C.
+  stopping = true;
+  console.error(message);
+  Promise.race([Promise.resolve(undo?.()), sleep(3000)])
+    .catch(() => console.error("No pude deshacer los cambios del recorrido."))
+    .finally(() => process.exit(1));
+}
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK"]) {
+  if (signal !== "SIGBREAK" || process.platform === "win32") process.on(signal, () => stop(`Cortado (${signal}).`));
+}
+const globalTimer = setTimeout(() => stop(`Timeout global (${timeoutMs / 1000} s).`), timeoutMs);
+
+/** Entorno de Chrome: sin los tokens ni lo que `.env` agregó al nuestro. */
+function chromeEnv() {
+  const env = { ...process.env };
+  for (const name of [...Object.values(TOKEN_VARS), "SESSION_SECRET", "DATABASE_URL", "POSTGRES_PASSWORD"]) delete env[name];
+  return env;
+}
+
+profile = mkdtempSync(join(tmpdir(), "panel-check-"));
+chrome = spawn(
   CHROME,
   [
     "--headless=new",
@@ -199,21 +326,9 @@ const chrome = spawn(
     "--hide-scrollbars",
     "about:blank",
   ],
-  { stdio: "ignore" },
+  { stdio: "ignore", env: chromeEnv(), detached: process.platform !== "win32" },
 );
-function killChrome() {
-  try {
-    chrome.kill();
-  } catch {
-    // Ya terminó.
-  }
-}
-process.on("exit", killChrome);
-for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(1));
-const globalTimer = setTimeout(() => {
-  console.error(`Timeout global (${GLOBAL_TIMEOUT_MS / 1000} s).`);
-  process.exit(1);
-}, GLOBAL_TIMEOUT_MS);
+chrome.on("error", () => fail("No pude abrir Chrome: revisá CHROME_PATH."));
 
 let socket;
 let lastId = 0;
@@ -516,8 +631,6 @@ async function section(name, run) {
   }
 }
 
-const OWNER = args.owner;
-const BARBER = args.barber;
 const PHONE = { width: 402, height: 874 };
 const SMALL = { width: 360, height: 640 };
 const DESKTOP = { width: 1366, height: 900 };
@@ -702,6 +815,146 @@ async function medidas() {
     check(await page.ev(`__all(".pole").length`) === 0, "la franja del poste no aparece en otra sección");
     await tokyo.wait(`${lineTime} !== ${JSON.stringify(first)}`, 65_000);
     check(true, "la línea avanza cada minuto");
+  });
+
+  await section("Nombres en la agenda", async (open) => {
+    const svcLong = "chk-svc-cents";
+    await q(`update "Appointment" set "customerId"='chk-cus-2' where id='chk-apt-3'`);
+    await q(`update "Appointment" set "barberId"=$1 where id='chk-apt-4'`, [barber.userId]);
+    await q(`update "Appointment" set "serviceId"=$1 where id='chk-apt-0'`, [svcLong]);
+    const tag = (id) => `${row(id)}.lastElementChild`;
+    const customerName = (id) => `${row(id)}.children[1].firstElementChild`;
+    /** El elemento más chico de la fila con ese texto. */
+    const withText = (id, text) =>
+      `[...${row(id)}.querySelectorAll("span")].filter((e) => e.textContent.replace(/^ · /, "").trim() === ${JSON.stringify(text)}).at(-1)`;
+    const whole = (e) => `(() => { const e = ${e}; return !!e && e.clientWidth > 0 && e.scrollWidth <= e.clientWidth && e.scrollHeight <= e.clientHeight; })()`;
+    const box = (e) => page.ev(`(() => { const e = ${e}; return e && [e.textContent, e.scrollWidth, e.clientWidth, e.scrollHeight, e.clientHeight]; })()`);
+    let page;
+    await withBarberName(async (rename) => {
+      for (const [sizeName, size] of [
+        ["402", PHONE],
+        ["360", SMALL],
+      ]) {
+        page = await open({ token: OWNER, ...size });
+        for (const name of ["Lucas Fernández", "Martín Gómez", "Santiago Rodríguez"]) {
+          await rename(name);
+          await page.go("/dashboard/today");
+          check(
+            (await page.ev(`${tag("chk-apt-3")}.textContent.trim()`)) === name && (await page.ev(whole(tag("chk-apt-3")))),
+            `${sizeName}: "${name}" entero en una fila pendiente`,
+            await box(tag("chk-apt-3")),
+          );
+          check(
+            (await page.ev(`${customerName("chk-apt-3")}.textContent.trim()`)) === "Tomás Vera" && (await page.ev(whole(customerName("chk-apt-3")))),
+            `${sizeName}: "Tomás Vera" entero junto a "${name}"`,
+            await box(customerName("chk-apt-3")),
+          );
+          check(await page.ev(whole(withText("chk-apt-0", name))), `${sizeName}: "${name}" entero en una fila Listo`, await box(withText("chk-apt-0", name)));
+          check(await page.ev(`${row("chk-apt-0")}.textContent.includes("Corte, barba y perfilado premium · ${name}")`), `${sizeName}: servicio · barbero en la fila Listo`);
+          if (sizeName === "402") {
+            const visible = await page.ev(`(() => { const dock = __one("[data-dock]").getBoundingClientRect(); return __all("[data-appointment]").filter((e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= dock.top + 0.5; }).length; })()`);
+            check(visible >= 4, `402 con "${name}": se ven ${visible} turnos enteros`);
+          }
+          await page.shot(`nombres-${sizeName}-${name.replace(/\W+/g, "-")}`);
+        }
+        await rename(LONG_NAME);
+        await page.go("/dashboard/today");
+        none(await page.ev("__overflow()"), `${sizeName}: barbero de 60 caracteres sin desborde`);
+        const spaces = await page.ev(`["chk-apt-3", "chk-apt-4"].map((id) => __one('[data-appointment="' + id + '"]').children[1].getBoundingClientRect().width)`);
+        check(spaces.every((w) => w >= 96), `${sizeName}: el nombre del cliente conserva 96 px o más`, spaces);
+        check(
+          await page.ev(`__all("[data-appointment]").every((e) => [...e.querySelectorAll("*")].every((c) => c.getBoundingClientRect().right <= e.getBoundingClientRect().right + 0.5 || c.closest(".truncate")))`),
+          `${sizeName}: nada se sale de su fila`,
+        );
+        await page.shot(`nombres-${sizeName}-largo`);
+      }
+    });
+
+    // El barbero no ve su nombre en lo suyo; lo demás queda igual.
+    const own = (await q(`select name from "User" where id=$1`, [barber.userId]))[0].name;
+    page = await open({ token: BARBER, ...PHONE });
+    await page.go("/dashboard/today");
+    check(await page.ev(`!${row("chk-apt-3")}.textContent.includes(${JSON.stringify(own)})`), "el barbero no ve su nombre en su fila pendiente");
+    check((await page.ev(`${tag("chk-apt-3")}.textContent.includes("Tomás Vera")`)) === true, "ni otra etiqueta en su lugar");
+    check((await page.ev(`${tag("chk-apt-2")}.textContent.trim()`)) === "Sin asignar", "Sin asignar no cambia para el barbero");
+    check((await page.ev(`${tag("chk-apt-0")}.textContent.trim()`)) === "Listo", "Listo no cambia para el barbero");
+    await page.shot("nombres-402-barbero");
+    await q(`update "Appointment" set "barberId"=$1 where id='chk-apt-4'`, [owner.userId]);
+    const ownerName = (await q(`select name from "User" where id=$1`, [owner.userId]))[0].name;
+    page = await open({ token: OWNER, ...PHONE });
+    await page.go("/dashboard/today");
+    check((await page.ev(`${tag("chk-apt-3")}.textContent.trim()`)) === own, "el dueño ve el nombre del barbero");
+    check((await page.ev(`${tag("chk-apt-4")}.textContent.trim()`)) === ownerName, "el dueño ve su nombre en lo que atiende él");
+  });
+
+  await section("Hora al día", async (open) => {
+    const page = await open({ token: OWNER, ...PHONE });
+    const hhmm = (ms) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(ms));
+    const lineTime = `__one("[data-now-line] .tabular-nums").textContent`;
+    const linePosition = `[...__one("[data-now-line]").parentElement.children].indexOf(__one("[data-now-line]"))`;
+    let shown = 0;
+    const isShown = async (label) => {
+      const now = await page.ev("Date.now()");
+      const times = [hhmm(now), hhmm(now + 1000)];
+      await page
+        .wait(`${JSON.stringify(times)}.includes(${lineTime})`, 1000)
+        .then(() => check(true, `${label}: ${times[0]} en 1 s o menos`))
+        .catch(async () => check(false, `${label}: ${times[0]} en 1 s o menos`, await page.ev(lineTime)));
+      const expected = (
+        await q(
+          `select count(*)::int n from "Appointment" where id like 'chk-apt-%' and "startsAt" + interval '1 hour' <= $1::timestamptz at time zone 'UTC'`,
+          [new Date(now).toISOString()],
+        )
+      )[0].n;
+      const position = await page.ev(linePosition);
+      check(position === expected, `${label}: la línea queda en la posición ${expected}`, String(position));
+      const moved = position !== shown;
+      shown = position;
+      return moved;
+    };
+    const tabTo = async (s) => {
+      await page.tap(`__one('nav.panel-nav a[href="/dashboard/${s}"]')`);
+      await page.wait(`location.pathname === "/dashboard/${s}" && ${LOADED}`);
+      await sleep(300);
+    };
+    const backToToday = `location.pathname === "/dashboard/today" && !!__one("[data-now-line]")`;
+
+    await page.go("/dashboard/today");
+    await isShown("al cargar");
+    const moves = [];
+    await tabTo("cash");
+    await page.ev("window.__skew += 3600000");
+    await page.tap(`__one('nav.panel-nav a[href="/dashboard/today"]')`);
+    await page.wait(backToToday);
+    moves.push(await isShown("volver por la barra"));
+
+    await tabTo("cash");
+    await page.ev("window.__skew += 3600000 + 7 * 60000");
+    await page.ev("history.back()");
+    await page.wait(backToToday);
+    moves.push(await isShown("volver con Atrás"));
+    // A última hora los turnos del fixture se juntan en las 23 y la línea puede no tener adónde moverse.
+    if (hhmm(Date.now()) < "22:00") check(moves.some(Boolean), "la línea cambió de lugar", moves);
+
+    await page.ev(`window.__skew += 5 * 60000; document.dispatchEvent(new Event("visibilitychange"))`);
+    await isShown("volver de otra pestaña del navegador");
+
+    // Después de volver, sigue avanzando: se vuelve 2 segundos antes del cambio de minuto.
+    await tabTo("cash");
+    await page.ev("window.__skew += 60000 - (Date.now() % 60000) + 60000 - 2000");
+    await page.tap(`__one('nav.panel-nav a[href="/dashboard/today"]')`);
+    await page.wait(backToToday);
+    const next = hhmm((await page.ev("Date.now()")) + 60_000);
+    await page
+      .wait(`${lineTime} === ${JSON.stringify(next)}`, 8000)
+      .then(() => check(true, "después de volver, la línea sigue avanzando"))
+      .catch(async () => check(false, "después de volver, la línea sigue avanzando", await page.ev(lineTime)));
+
+    check(
+      await page.ev(`[...__all("[data-appointment]").map((e) => e.firstElementChild), __one("[data-now-line] .tabular-nums")].every((e) => /^\\d\\d:\\d\\d$/.test(e.textContent.trim()) && getComputedStyle(e).fontVariantNumeric === "tabular-nums")`),
+      "horas con tabular-nums",
+    );
+    check(await page.ev(`getComputedStyle(${row("chk-apt-2")}.firstElementChild).fontFamily.includes("Anton")`), "las horas siguen en Anton");
   });
 
   await section("Textos largos a 360", async (open) => {
@@ -1321,6 +1574,253 @@ async function recorridos() {
     await empty("salir y volver con Atrás: borrador vacío");
   });
 
+  /** Lo común a los recorridos del cliente que llega tarde. */
+  const lateCustomer = (page) => {
+    const customer = fx.customers[1];
+    const phoneField = `__one('[role="dialog"] [name="phone"]')`;
+    const saved = () =>
+      q(
+        `select "customerId" from "ServiceRecord" where "barbershopId"=$1 and "businessDate"=$2::date order by "dailyNumber"`,
+        [shop, today],
+      );
+    /** Hoja con servicio y "Cliente" abierto; devuelve dónde tocar Registrar (la acción está fija abajo). */
+    const prepare = async () => {
+      await openWalkIn(page);
+      await page.tap(tile("Corte de pelo"));
+      await page.tapText("Cliente*", '[role="dialog"] button');
+      return page.point(submitButton);
+    };
+    const clean = async (label) => {
+      const now = await page.ev(`(() => {
+        const d = __dialog();
+        return {
+          phone: d.querySelector('[name="phone"]').value,
+          name: d.querySelector('[name="name"]')?.value ?? null,
+          toggle: d.querySelector("button[aria-expanded]").textContent.trim(),
+          extra: ["Ver ficha", "Buscando cliente…", ${JSON.stringify(customer.name)}].filter((t) => d.textContent.includes(t)),
+        };
+      })()`);
+      check(now.phone === "" && now.name === "" && now.toggle === "Cliente (opcional)" && now.extra.length === 0, label, now);
+    };
+    /** Reabre la hoja: limpia ya y 1,5 s después, y el corte siguiente se guarda sin cliente. */
+    const nextIsClean = async (label) => {
+      await openWalkIn(page);
+      await clean(`${label}: al reabrir, sin cliente`);
+      await sleep(1500);
+      await clean(`${label}: 1,5 s después, sin cliente`);
+      const before = (await saved()).length;
+      await page.tap(tile("Corte de pelo"));
+      await page.tap(submitButton);
+      await page.closed();
+      const rows = await saved();
+      check(rows.length === before + 1 && rows.at(-1).customerId === null, `${label}: el corte siguiente queda sin cliente`, rows.slice(before));
+    };
+    return { customer, phoneField, saved, prepare, clean, nextIsClean };
+  };
+
+  await section("Cliente que llega tarde", async (open) => {
+    const page = await open({ token: OWNER, ...PHONE });
+    const { customer, phoneField, saved, prepare, nextIsClean } = lateCustomer(page);
+    await page.go("/dashboard/today");
+    for (const latency of [0, 400]) {
+      for (const delay of [0, 150, 250]) {
+        const label = `registrar a los ${delay} ms, red ${latency} ms`;
+        const button = await prepare();
+        const before = (await saved()).length;
+        await page.net({ latency });
+        await page.type(phoneField, customer.phone);
+        await sleep(delay);
+        await page.tapAt(button);
+        await page.closed();
+        const rows = await saved();
+        check(rows.length === before + 1 && rows.at(-1).customerId === customer.id, `${label}: el corte queda con su cliente`, rows.slice(before));
+        await nextIsClean(label);
+        await page.net();
+      }
+    }
+
+    // El teléfono cambia mientras dice "Registrando…".
+    for (const wait of [0, 500]) {
+      const label = `teléfono escrito al guardar (+${wait} ms)`;
+      const button = await prepare();
+      await page.net({ latency: 1200 });
+      await page.tapAt(button);
+      await page.wait(`${submitButton}.textContent.trim() === "Registrando…"`);
+      await sleep(wait);
+      await page.type(phoneField, customer.phone);
+      await page.closed();
+      await page.net();
+      check((await saved()).at(-1).customerId === null, `${label}: no cambia lo que ya se envió`);
+      await nextIsClean(label);
+    }
+
+    // Una tecla que entra cuando la hoja ya se está cerrando.
+    const button = await prepare();
+    await page.ev(`(() => {
+      const field = ${phoneField};
+      window.__late = 0;
+      const timer = setInterval(() => {
+        if (!field.isConnected || window.__late === 3) return clearInterval(timer);
+        if (!field.closest('[role="dialog"]').hasAttribute("data-ending-style")) return;
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(field, ${JSON.stringify(customer.phone)} + window.__late++);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      }, 10);
+    })()`);
+    await page.tapAt(button);
+    await page.closed();
+    check((await page.ev("window.__late")) > 0, "se escribió mientras la hoja se cerraba");
+    await nextIsClean("teléfono escrito al cerrarse");
+
+    // Si registrar falla no se cancela nada: quedan los datos y la búsqueda completa el cliente.
+    const failing = await prepare();
+    await page.type(`__one('[role="dialog"] [name="name"]')`, "Nombre a mano");
+    const beforeFail = (await saved()).length;
+    await q(`update "Service" set active=false where "barbershopId"=$1`, [shop]);
+    await page.net({ latency: 400 });
+    await page.type(phoneField, customer.phone);
+    await page.tapAt(failing);
+    await page.wait(`!!__one('[role="dialog"] [role="alert"]')`);
+    await page.wait(`__dialog().textContent.includes("Ver ficha") && __dialog().textContent.includes(${JSON.stringify(customer.name)})`);
+    check(
+      (await page.ev(`${phoneField}.value`)) === customer.phone && (await saved()).length === beforeFail,
+      "si registrar falla, la búsqueda completa el cliente y quedan los datos",
+    );
+    await page.net();
+    await q(`update "Service" set active=true where "barbershopId"=$1 and id not like 'chk-%'`, [shop]);
+    await page.escape();
+    await page.closed();
+
+    // Cerrar sin registrar tampoco la cancela.
+    await page.go("/dashboard/today");
+    await prepare();
+    await page.net({ latency: 400 });
+    await page.type(phoneField, customer.phone);
+    await page.escape();
+    await page.closed();
+    await sleep(1500);
+    await page.net();
+    await openWalkIn(page);
+    check(await page.ev(`__dialog().querySelector("button[aria-expanded]").textContent.includes(${JSON.stringify(customer.name)})`), "cerrar sin registrar no cancela la búsqueda");
+
+  });
+
+  await section("Cliente que llega tarde al salir", async (open) => {
+    const page = await open({ token: OWNER, ...PHONE });
+    const { customer, phoneField, saved, prepare, clean } = lateCustomer(page);
+    const toToday = `__one('nav.panel-nav a[href="/dashboard/today"]')`;
+    // Con la búsqueda en espera o enviada, y con un envío en curso.
+    await page.go("/dashboard/cash");
+    await page.tap(toToday);
+    await page.wait(`location.pathname === "/dashboard/today" && ${LOADED}`);
+    for (const [suffix, submitting, quick] of [
+      ["", false, false],
+      [" con un envío en curso", true, false],
+      [" con un envío en curso, ida y vuelta rápida", true, true],
+    ]) {
+      for (const delay of [0, 150, 250, 450]) {
+        const label = `salir a los ${delay} ms${suffix}`;
+        const before = (await saved()).length;
+        const button = await prepare();
+        await page.net({ latency: 1000 });
+        await page.type(phoneField, customer.phone);
+        if (submitting) await page.tapAt(button);
+        await sleep(delay);
+        await page.ev("history.back()");
+        // La ruta cambia antes que la pantalla: la ida y vuelta rápida no espera a que Hoy quede oculta
+        // (con el envío en curso, la hoja sigue a la vista y se cierra con el éxito).
+        await page.wait(`location.pathname === "/dashboard/cash"${quick ? "" : ` && __one("h1")?.textContent.trim() === "Caja"`}`);
+        if (quick) await page.ev("history.forward()");
+        else await page.tap(toToday);
+        await page.wait(`location.pathname === "/dashboard/today" && ${LOADED} && __one("h1").textContent.trim() === "Hoy" && !!${CTA}`, 15_000);
+        if (quick) await page.closed();
+        else check(await page.ev("!__dialog()"), `${label}: al volver no hay hoja abierta`);
+        await openWalkIn(page);
+        await clean(`${label}: al volver, sin cliente`);
+        await sleep(2500);
+        await clean(`${label}: después de la respuesta, sin cliente`);
+        const rows = (await saved()).slice(before);
+        check(
+          submitting ? rows.length === 1 && rows[0].customerId === customer.id : rows.length === 0,
+          `${label}: ${submitting ? "un solo corte, con su cliente" : "sin cortes"}`,
+          rows,
+        );
+        await page.net();
+        await page.escape();
+        await page.closed();
+      }
+    }
+  });
+
+  await section("Cliente a la vista", async (open) => {
+    for (const reducedMotion of [false, true]) {
+      const label = reducedMotion ? "movimiento reducido" : "con movimiento";
+      const page = await open({ token: OWNER, ...SMALL, reducedMotion });
+      await page.go("/dashboard/today");
+      const behind = await page.ev(`(() => { scrollTo(0, 120); return scrollY; })()`);
+      await openWalkIn(page);
+      const scroller = `__dialog().querySelector("form").parentElement`;
+      const toggle = `__text("Cliente*", '[role="dialog"] button')`;
+      const fieldsInView = `["phone", "name"].every((name) => {
+        const box = ${scroller}.getBoundingClientRect();
+        const r = __dialog().querySelector('[name="' + name + '"]').getBoundingClientRect();
+        const l = __dialog().querySelector('[name="' + name + '"]').closest("div").querySelector("label").getBoundingClientRect();
+        return r.height > 0 && l.top >= box.top - 0.5 && r.bottom <= box.bottom + 0.5;
+      })`;
+      check((await page.ev(`${scroller}.scrollTop`)) === 0, `${label}: la hoja arranca arriba`);
+      // Se toca sin que el script mueva la hoja: si no se ve entero, se toca su borde visible.
+      const at = await page.ev(`(() => {
+        const r = ${toggle}.getBoundingClientRect();
+        const box = ${scroller}.getBoundingClientRect();
+        const bottom = Math.min(r.bottom, box.bottom);
+        return bottom - r.top < 8 ? null : { x: r.x + r.width / 2, y: (r.top + bottom) / 2 };
+      })()`);
+      if (!at) {
+        await page.ev(`${toggle}.click()`);
+      } else if (reducedMotion) {
+        const frames = page.ev(`new Promise((resolve) => ${toggle}.addEventListener("click", () => requestAnimationFrame(() => requestAnimationFrame(() => resolve(${fieldsInView}))), { once: true }))`);
+        await sleep(100);
+        await page.tapAt(at);
+        check(await frames, `${label}: a los dos cuadros los campos están a la vista`);
+      } else {
+        await page.tapAt(at);
+      }
+      const inView = await page
+        .wait(`(() => { const t = performance.now(); return ${fieldsInView} ? t : 0; })()`, 500)
+        .catch(() => null);
+      check(inView !== null, `${label}: Teléfono y Nombre enteros a la vista en 500 ms o menos`);
+      await sleep(400);
+      check(await page.ev(fieldsInView), `${label}: y ahí quedan`);
+      check((await page.ev(`${scroller}.scrollTop`)) > 0, `${label}: la hoja se movió`);
+      check(await page.ev(`!/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)`), `${label}: no enfoca ningún campo`);
+      check((await page.ev("scrollY")) === behind, `${label}: la página de atrás no se mueve`);
+      await page.shot(`cliente-a-la-vista-${reducedMotion ? "reducido" : "normal"}`);
+
+      // Plegar no scrollea (salvo el tope que pone el propio navegador al achicarse el contenido).
+      const folding = await page.ev(`(async () => {
+        const s = ${scroller};
+        s.scrollTop -= 60;
+        const before = s.scrollTop;
+        ${toggle}.click();
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return [s.scrollTop, Math.min(before, s.scrollHeight - s.clientHeight)];
+      })()`);
+      check(Math.abs(folding[0] - folding[1]) <= 1, `${label}: al plegar no scrollea`, folding);
+      await page.ev(`${toggle}.click()`);
+      await sleep(500);
+      check(await page.ev(fieldsInView), `${label}: al desplegar otra vez, a la vista`);
+      await page.escape();
+      await page.closed();
+      await openWalkIn(page);
+      await sleep(500);
+      check(
+        (await page.ev(`${scroller}.scrollTop`)) === 0 && (await page.ev(`${toggle}.getAttribute("aria-expanded")`)) === "true",
+        `${label}: al reabrir con "Cliente" abierto no scrollea`,
+      );
+      await page.escape();
+      await page.closed();
+    }
+  });
+
   await section("Corte con cliente", async (open) => {
     const page = await open({ token: OWNER, ...PHONE });
     await page.go("/dashboard/today");
@@ -1465,14 +1965,8 @@ try {
   console.error(error);
 } finally {
   clearTimeout(globalTimer);
-  await Promise.race([send("Browser.close").catch(() => {}), sleep(3000)]).catch(() => {});
-  await sleep(500);
-  killChrome();
+  const closed = new Promise((resolve) => chrome.once("exit", resolve));
+  await Promise.race([send("Browser.close").then(() => closed), sleep(3000)]).catch(() => {});
   await client.end().catch(() => {});
-  try {
-    rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
-  } catch {
-    // El perfil es temporal: si Chrome todavía lo tiene tomado, lo limpia el sistema.
-  }
   process.exit(exitCode);
 }
