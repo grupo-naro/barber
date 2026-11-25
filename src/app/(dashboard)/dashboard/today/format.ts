@@ -34,6 +34,9 @@ export function initials(name: string): string {
 export const nativeControlClass =
   "min-h-11 w-full rounded-lg border border-input bg-card px-2.5 py-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 disabled:opacity-50 md:text-sm dark:bg-input/30";
 
+/** Acción principal de Hoy y de sus hojas (va sobre `Button`). */
+export const ctaClass = "h-14 w-full rounded-[10px] text-lg font-semibold whitespace-normal";
+
 /** Chip seleccionable (label que envuelve un checkbox/radio oculto), ≥ 44px. */
 export const chipClass =
   "inline-flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-full border border-input bg-background px-4 py-2 text-sm font-medium transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-disabled:cursor-not-allowed has-disabled:opacity-50";
