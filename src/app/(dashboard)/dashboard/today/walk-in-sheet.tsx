@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Sheet } from "@/components/panel/sheet";
@@ -9,6 +9,7 @@ import { useSheetAction } from "@/components/panel/use-sheet-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createLatestLookup } from "@/lib/latest-lookup";
 import { formatPrice } from "@/lib/money";
 import { normalizePhone, sumPrices, type PaymentMethodValue } from "@/lib/records";
 import { cn } from "@/lib/utils";
@@ -51,6 +52,23 @@ function blurOnEnter(event: KeyboardEvent<HTMLInputElement>) {
   event.currentTarget.blur();
 }
 
+/**
+ * Deja `element` entero a la vista dentro de la hoja. Mueve solo el contenido de la hoja (no la página, como haría
+ * `scrollIntoView`) y sin animar si se pidió menos movimiento: el CSS no frena un `smooth` pedido por JS.
+ */
+function revealInSheet(element: HTMLElement) {
+  const content = element.closest("[data-drawer-content]");
+  if (!content) return;
+  const margin = 12;
+  const box = content.getBoundingClientRect();
+  const target = element.getBoundingClientRect();
+  // Si no entra entero, gana el comienzo.
+  const top = Math.min(target.bottom + margin - box.bottom, target.top - margin - box.top);
+  if (top <= 0) return;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  content.scrollBy({ top, behavior: reduced ? "instant" : "smooth" });
+}
+
 export function WalkInSheet({
   open,
   onClose,
@@ -74,55 +92,60 @@ export function WalkInSheet({
   const formId = useId();
   const toast = useToast();
   const confirmed = useRef<string | null>(null);
+  const customerBox = useRef<HTMLDivElement>(null);
+  const justOpened = useRef(false);
   const [searching, setSearching] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestPhone = useRef("");
+  const [customerLookup] = useState(() => createLatestLookup(lookupCustomer, LOOKUP_DELAY_MS));
 
   const { submit, reset, locked, error } = useSheetAction<NonNullable<RecordFormState>>({
     action: createWalkIn,
     onNetworkError: recordNetworkError,
     onSuccess: (message) => {
       confirmed.current = message;
+      customerLookup.cancel();
+      setSearching(false);
       onDraft(() => EMPTY_DRAFT);
       onClose();
     },
   });
 
-  useEffect(() => {
-    return () => {
-      // Al salir de Hoy: ni búsqueda pendiente ni resultado que llegue tarde.
-      if (timer.current) clearTimeout(timer.current);
-      latestPhone.current = "";
-    };
-  }, []);
+  // Al salir de Hoy: ni búsqueda pendiente ni resultado que llegue tarde. En la misma fase en que `TodayBoard`
+  // vacía el borrador, para que entre las dos cosas no pueda entrar una respuesta.
+  useLayoutEffect(() => {
+    return () => customerLookup.cancel();
+  }, [customerLookup]);
+
+  useLayoutEffect(() => {
+    if (!justOpened.current) return;
+    justOpened.current = false;
+    if (draft.customerOpen && customerBox.current) revealInSheet(customerBox.current);
+  }, [draft.customerOpen]);
 
   // Un servicio del borrador que se desactivó mientras tanto no se cuenta ni se envía.
   const selected = draft.serviceIds.filter((id) => services.some((s) => s.id === id));
   const total = sumPrices(services.filter((s) => selected.includes(s.id)).map((s) => s.price));
   const known = draft.customer?.found ? draft.customer : null;
-  const set = (patch: Partial<WalkInDraft>) => onDraft((prev) => ({ ...prev, ...patch }));
+  /** Después de un éxito no se escribe más: una tecla durante el cierre quedaría en el corte siguiente. */
+  const update = (change: (prev: WalkInDraft) => WalkInDraft) => {
+    if (confirmed.current === null) onDraft(change);
+  };
+  const set = (patch: Partial<WalkInDraft>) => update((prev) => ({ ...prev, ...patch }));
 
   function onPhoneChange(value: string) {
+    if (confirmed.current !== null) return;
     set({ phone: value, customer: null });
-    if (timer.current) clearTimeout(timer.current);
     const normalized = normalizePhone(value);
-    latestPhone.current = normalized ?? "";
     if (!normalized) {
+      customerLookup.cancel();
       setSearching(false);
       return;
     }
     setSearching(true);
-    timer.current = setTimeout(async () => {
-      let result: CustomerLookup | null = null;
-      try {
-        result = await lookupCustomer(normalized);
-      } catch {
-        // Sin conexión: se sigue como cliente sin buscar; el servidor lo resuelve al registrar.
-      }
-      if (latestPhone.current !== normalized) return;
-      set({ customer: result });
+    // Sin conexión llega `null`: se sigue como cliente sin buscar; el servidor lo resuelve al registrar.
+    customerLookup.search(normalized, (customer) => {
+      set({ customer });
       setSearching(false);
-    }, LOOKUP_DELAY_MS);
+    });
   }
 
   return (
@@ -165,7 +188,7 @@ export function WalkInSheet({
         <ServiceTiles
           services={services}
           selected={selected}
-          onToggle={(id) => onDraft((prev) => ({ ...prev, serviceIds: toggleId(prev.serviceIds, id) }))}
+          onToggle={(id) => update((prev) => ({ ...prev, serviceIds: toggleId(prev.serviceIds, id) }))}
         />
         <PaymentPicker value={draft.payment} onChange={(payment) => set({ payment })} />
         {barbers ? (
@@ -179,12 +202,15 @@ export function WalkInSheet({
           />
         ) : null}
 
-        <div className="rounded-[10px] border-2">
+        <div ref={customerBox} className="rounded-[10px] border-2">
           <button
             type="button"
             aria-expanded={draft.customerOpen}
             aria-controls={`${formId}-customer`}
-            onClick={() => set({ customerOpen: !draft.customerOpen })}
+            onClick={() => {
+              justOpened.current = !draft.customerOpen;
+              set({ customerOpen: !draft.customerOpen });
+            }}
             className="panel-row flex min-h-12 w-full items-center gap-2 rounded-lg px-3 text-left font-medium"
           >
             <span className="min-w-0 flex-1 truncate">
