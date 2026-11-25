@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-22T17:15:52.606215+00:00",
+  "updated": "2026-11-25T00:48:35.653Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -854,6 +854,69 @@
       "builder": "builder-028-billing-hardening",
       "decision": "APPROVE",
       "note": "mergeado a main"
+    },
+    {
+      "id": "030-mobile-panel-today",
+      "title": "Panel móvil, tanda 1: base y Hoy",
+      "branch": "factory/030-mobile-panel-today",
+      "worktree": ".worktrees/030-mobile-panel-today",
+      "scope": [
+        "src/lib/money.ts",
+        "src/lib/money.test.ts",
+        "src/lib/today-board.ts",
+        "src/lib/today-board.test.ts",
+        "src/lib/safe-action.ts",
+        "src/lib/safe-action.test.ts",
+        "src/lib/brand-colors.ts",
+        "src/lib/brand-colors.test.ts",
+        "src/lib/dashboard-nav.ts",
+        "src/lib/dashboard-nav.test.ts",
+        "src/server/queries/landing.ts",
+        "src/components/dashboard-nav.tsx",
+        "src/components/panel/**",
+        "src/app/(dashboard)/panel.css",
+        "src/app/(dashboard)/layout.tsx",
+        "src/app/(dashboard)/billing-gate.tsx",
+        "src/app/(dashboard)/(account)/dashboard/account/page.tsx",
+        "src/app/(dashboard)/dashboard/layout.tsx",
+        "src/app/(dashboard)/dashboard/today/page.tsx",
+        "src/app/(dashboard)/dashboard/today/today-board.tsx",
+        "src/app/(dashboard)/dashboard/today/walk-in-sheet.tsx",
+        "src/app/(dashboard)/dashboard/today/appointment-sheet.tsx",
+        "src/app/(dashboard)/dashboard/today/records-sheet.tsx",
+        "src/app/(dashboard)/dashboard/today/fields.tsx",
+        "src/app/(dashboard)/dashboard/today/format.ts",
+        "src/app/(dashboard)/dashboard/today/walk-in-form.tsx",
+        "src/app/(dashboard)/dashboard/today/appointment-actions.tsx",
+        "src/app/(dashboard)/dashboard/today/customers/[id]/page.tsx",
+        "src/app/(dashboard)/dashboard/cash/page.tsx",
+        "src/app/(dashboard)/dashboard/services/page.tsx",
+        "src/app/(dashboard)/dashboard/services/[id]/page.tsx",
+        "src/app/(dashboard)/dashboard/services/format.ts",
+        "src/app/(dashboard)/dashboard/services/bulk-price-form.tsx",
+        "src/app/(dashboard)/dashboard/barbers/page.tsx",
+        "src/app/(dashboard)/dashboard/barbers/[id]/page.tsx",
+        "src/app/(dashboard)/dashboard/barbers/format.ts",
+        "src/app/(dashboard)/dashboard/settings/page.tsx",
+        "scripts/panel-check.mjs"
+      ],
+      "stage": "needs-human",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "028-billing-hardening"
+      ],
+      "builder": "builder-030-mobile-panel-today",
+      "decision": "ESCALATE",
+      "note": "4 PASS, pero el approver reprodujo AC-6c: registrar muy rápido tras escribir el teléfono deja al cliente anterior en el corte siguiente. Recomienda rework chico."
     }
   ]
 }
