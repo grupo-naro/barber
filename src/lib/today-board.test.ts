@@ -16,13 +16,36 @@ describe("nowLineIndex", () => {
 });
 
 describe("appointmentTag", () => {
+  const martin = { id: "b", name: "Martín" };
+  const owner = { role: "OWNER", userId: "o" } as const;
+  const barber = { role: "BARBER", userId: "b" } as const;
+
   it("etiquetas", () => {
-    const barber = { id: "b", name: "Martín" };
-    expect(appointmentTag({ status: "PENDING", barber: null })).toEqual({ label: "Sin asignar", tone: "accent" });
-    expect(appointmentTag({ status: "CONFIRMED", barber })).toEqual({ label: "Martín", tone: "neutral" });
-    expect(appointmentTag({ status: "COMPLETED", barber })).toEqual({ label: "Listo", tone: "muted" });
-    expect(appointmentTag({ status: "NO_SHOW", barber: null })).toEqual({ label: "No vino", tone: "muted" });
-    expect(appointmentTag({ status: "CANCELLED", barber: null })).toEqual({ label: "Cancelado", tone: "muted" });
+    expect(appointmentTag({ status: "PENDING", barber: null }, owner)).toEqual({ label: "Sin asignar", tone: "accent" });
+    expect(appointmentTag({ status: "CONFIRMED", barber: martin }, owner)).toEqual({ label: "Martín", tone: "neutral" });
+    expect(appointmentTag({ status: "COMPLETED", barber: martin }, owner)).toEqual({ label: "Listo", tone: "muted" });
+    expect(appointmentTag({ status: "NO_SHOW", barber: null }, owner)).toEqual({ label: "No vino", tone: "muted" });
+    expect(appointmentTag({ status: "CANCELLED", barber: null }, owner)).toEqual({ label: "Cancelado", tone: "muted" });
+  });
+
+  it.each(["PENDING", "CONFIRMED"] as const)("%s: el barbero no ve su propio nombre", (status) => {
+    expect(appointmentTag({ status, barber: martin }, barber)).toBeNull();
+  });
+
+  it("el barbero ve Sin asignar en lo que no es de nadie", () => {
+    expect(appointmentTag({ status: "PENDING", barber: null }, barber)).toEqual({ label: "Sin asignar", tone: "accent" });
+  });
+
+  it("el barbero ve el resultado de sus turnos terminados", () => {
+    expect(appointmentTag({ status: "COMPLETED", barber: martin }, barber)).toEqual({ label: "Listo", tone: "muted" });
+    expect(appointmentTag({ status: "NO_SHOW", barber: martin }, barber)).toEqual({ label: "No vino", tone: "muted" });
+    expect(appointmentTag({ status: "CANCELLED", barber: martin }, barber)).toEqual({ label: "Cancelado", tone: "muted" });
+  });
+
+  it.each(["PENDING", "CONFIRMED"] as const)("%s: el dueño ve el nombre también en lo que atiende él", (status) => {
+    const self = { id: "o", name: "Nora" };
+    expect(appointmentTag({ status, barber: self }, owner)).toEqual({ label: "Nora", tone: "neutral" });
+    expect(appointmentTag({ status, barber: martin }, owner)).toEqual({ label: "Martín", tone: "neutral" });
   });
 });
 
