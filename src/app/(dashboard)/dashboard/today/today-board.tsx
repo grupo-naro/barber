@@ -69,6 +69,13 @@ function useRefreshOnReturn() {
   }, [router]);
 }
 
+/** Resumen con la cantidad y el total en negrita. */
+function Summary({ text }: { text: string }) {
+  return text
+    .split(/(\d+(?= cortes? por )|\$[\d.,]+)/)
+    .map((part, index) => (index % 2 === 1 ? <b key={index}>{part}</b> : part));
+}
+
 function NowLine({ time }: { time: string }) {
   return (
     <li className="flex h-7.5 items-center gap-2.5 border-b px-4.5 text-sm font-semibold sm:px-4" data-now-line="">
@@ -227,7 +234,9 @@ export function TodayBoard({
         className="panel-row flex min-h-13 w-full items-center justify-between gap-3 px-4.5 py-2 text-left sm:px-4"
         data-summary=""
       >
-        <span className="min-w-0 wrap-anywhere">{daySummary(role, records.length, total)}</span>
+        <span className="min-w-0 wrap-anywhere">
+          <Summary text={daySummary(role, records.length, total)} />
+        </span>
         <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
       </button>
 

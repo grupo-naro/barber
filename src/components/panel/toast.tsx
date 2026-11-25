@@ -7,8 +7,8 @@ const TOAST_MS = 3000;
 const ToastContext = createContext<(message: string) => void>(() => {});
 
 /**
- * Avisos del panel: una región `role="status"` siempre montada, dentro de `.panel-theme` y encima de la barra (y
- * del botón fijo de Hoy). Con una hoja abierta los lectores de pantalla no la leen: emitir en `onClosed`.
+ * Avisos del panel: una región `role="status"` siempre montada, dentro de `.panel-theme`, encima de la barra y del
+ * botón fijo de Hoy, y debajo de las hojas. Con una hoja abierta los lectores de pantalla no la leen: emitir en `onClosed`.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
@@ -29,7 +29,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         role="status"
         aria-live="polite"
         data-panel-toast=""
-        className="pointer-events-none fixed inset-x-4 bottom-[calc(var(--panel-bar)+5.5rem)] z-60 flex justify-center"
+        className="pointer-events-none fixed inset-x-4 bottom-[calc(var(--panel-bar)+5.5rem)] z-45 flex justify-center"
       >
         {toast ? (
           <p

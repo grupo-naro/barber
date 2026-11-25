@@ -94,6 +94,14 @@
   outline-offset: 2px;
 }
 
+/* Al llegar con el teclado, el control no queda tapado por la barra (ni por el botón fijo de Hoy). */
+.panel-theme main :is(a, button, input, select, textarea, summary) {
+  scroll-margin-bottom: calc(var(--panel-bar) + 1rem);
+}
+.panel-theme main .panel-row {
+  scroll-margin-bottom: calc(var(--panel-bar) + 6rem);
+}
+
 /* Los botones de shadcn aclaran la acción al pasar el mouse y el blanco deja de leerse: se oscurece. */
 .panel-theme .hover\:bg-primary\/80:hover {
   background-color: color-mix(in srgb, var(--primary), #000 14%);

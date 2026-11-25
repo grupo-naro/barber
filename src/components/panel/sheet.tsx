@@ -87,7 +87,7 @@ export function Sheet({
               )}
             >
               <div className="flex shrink-0 touch-none items-center justify-between gap-3 px-4 pt-3.5 pb-2.5">
-                <Drawer.Title className="panel-display line-clamp-2 min-w-0 py-0.5 text-[1.625rem] leading-[1.15] wrap-anywhere">
+                <Drawer.Title className="panel-display line-clamp-3 min-w-0 py-0.5 text-[1.625rem] leading-[1.15] wrap-anywhere">
                   {title}
                 </Drawer.Title>
                 <Drawer.Close

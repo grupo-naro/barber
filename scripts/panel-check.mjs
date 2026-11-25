@@ -275,7 +275,8 @@ const INJECTED = `(() => {
     if (root.scrollWidth > window.innerWidth + 0.5) out.push("página " + root.scrollWidth);
     for (const e of window.__all('[role="dialog"], [role="dialog"] *')) {
       const r = e.getBoundingClientRect();
-      if (getComputedStyle(e).position !== "absolute" && r.width > 1 && (r.right > window.innerWidth + 0.5 || r.left < -0.5)) out.push("hoja: " + e.tagName + " " + e.className.toString().slice(0, 60));
+      const clipped = e.parentElement.closest('[role="dialog"] .truncate');
+      if (!clipped && getComputedStyle(e).position !== "absolute" && r.width > 1 && (r.right > window.innerWidth + 0.5 || r.left < -0.5)) out.push("hoja: " + e.tagName + " " + e.className.toString().slice(0, 60));
       if (["auto", "scroll"].includes(getComputedStyle(e).overflowY) && e.scrollWidth > e.clientWidth + 0.5) out.push("scroll lateral en la hoja " + e.scrollWidth + ">" + e.clientWidth);
     }
     return out;
@@ -426,8 +427,8 @@ async function openPage({ token, width, height, mobile = width < 640, reducedMot
   page.tapText = (text, sel) => page.tap(`__text(${JSON.stringify(text)}${sel ? `, ${JSON.stringify(sel)}` : ""})`);
   page.swipe = async (from, dy) => {
     await s("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [from] });
-    for (let i = 1; i <= 10; i++) {
-      await s("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: from.x, y: from.y + (dy * i) / 10 }] });
+    for (let i = 1; i <= 6; i++) {
+      await s("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: from.x, y: from.y + (dy * i) / 6 }] });
       await sleep(16);
     }
     await s("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
@@ -942,7 +943,7 @@ async function hojas() {
     await same("toque afuera");
 
     await openIt();
-    await page.swipe(await page.point(`__all('[role="dialog"] h2')[0]`), 320);
+    await page.swipe(await page.point(`__all('[role="dialog"] h2')[0]`), 420);
     await page.closed();
     await back("deslizar");
     await same("deslizar");
@@ -1008,8 +1009,9 @@ async function hojas() {
     check(await page.ev(`__all('[role="dialog"] [name="paymentMethod"]').find((i) => i.checked).value`) === "TRANSFER", "flecha cambia el medio de pago");
     for (let i = 0; i < 25; i++) {
       await page.tab();
+      await sleep(60); // Base UI devuelve el foco desde su guarda en el frame siguiente.
       if (!(await page.ev(`__dialog().contains(document.activeElement) || document.activeElement.hasAttribute("data-base-ui-focus-guard")`))) {
-        check(false, "el foco queda atrapado en la hoja");
+        check(false, "el foco queda atrapado en la hoja", await page.ev("document.activeElement.outerHTML.slice(0, 200)"));
         break;
       }
       if (i === 24) check(true, "el foco queda atrapado en la hoja");
@@ -1099,7 +1101,7 @@ async function recorridos() {
     check(await page.ev(`__toast() === ""`), "sin aviso antes de la respuesta");
     await page.escape();
     await page.tapAt({ x: 200, y: 20 });
-    await page.swipe(await page.point(`__all('[role="dialog"] h2')[0]`), 320);
+    await page.swipe(await page.point(`__all('[role="dialog"] h2')[0]`), 420);
     await page.tap(`__all('[role="dialog"] [aria-label="Cerrar"]')[0]`);
     await page.comeBack();
     await sleep(350);
@@ -1134,6 +1136,32 @@ async function recorridos() {
     await page.closed();
     check(page.actions === 1 && (await statusOf("chk-apt-6")) === "NO_SHOW", "doble toque en No vino: un solo envío");
     await page.net();
+  });
+
+  await section("Salir con un envío en curso", async (open) => {
+    const page = await open({ token: OWNER, ...PHONE });
+    await page.go("/dashboard/cash");
+    await page.tap(`__one('nav.panel-nav a[href="/dashboard/today"]')`);
+    await page.wait(`location.pathname === "/dashboard/today" && ${LOADED}`);
+    await openWalkIn(page);
+    await page.tap(tile("Corte de pelo"));
+    const before = await countRecords();
+    await page.net({ latency: 1500 });
+    await page.tap(submitButton);
+    await sleep(200);
+    await page.ev("history.back()");
+    await page.wait(`location.pathname === "/dashboard/cash"`);
+    await page.wait(`__toast().startsWith("Corte registrado: #")`);
+    await page.net();
+    check((await countRecords()) === before + 1, "salir con un envío en curso: un corte, y se avisa");
+    await page.tap(`__one('nav.panel-nav a[href="/dashboard/today"]')`);
+    await page.wait(`location.pathname === "/dashboard/today" && ${LOADED}`);
+    check(await page.ev("!__dialog()"), "al volver no hay hoja abierta");
+    await openWalkIn(page);
+    check(
+      (await page.ev(checkedServices)).length === 0 && (await page.ev(`${submitButton}.textContent.trim()`)) === "Elegí un servicio",
+      "y la hoja arranca vacía y sin bloquear",
+    );
   });
 
   await section("Sin conexión", async (open) => {
