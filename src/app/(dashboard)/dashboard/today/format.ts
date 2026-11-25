@@ -1,3 +1,5 @@
+import type { RecordFormState } from "@/server/actions/records";
+
 const longDate = new Intl.DateTimeFormat("es-AR", {
   timeZone: "UTC",
   weekday: "long",
@@ -37,6 +39,14 @@ export const nativeControlClass =
 /** Acción principal de Hoy y de sus hojas (va sobre `Button`). */
 export const ctaClass = "h-14 w-full rounded-[10px] text-lg font-semibold whitespace-normal";
 
-/** Chip seleccionable (label que envuelve un checkbox/radio oculto), ≥ 44px. */
-export const chipClass =
-  "inline-flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-full border border-input bg-background px-4 py-2 text-sm font-medium transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-primary-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-disabled:cursor-not-allowed has-disabled:opacity-50";
+/** Deshabilitado sin nada elegido: gris legible. Guardando: conserva el color de la acción. */
+export function submitClass(locked: boolean): string {
+  return locked
+    ? "disabled:opacity-100"
+    : "disabled:bg-border disabled:text-muted-foreground disabled:opacity-100";
+}
+
+/** Error de red con la forma de `RecordFormState`. */
+export function recordNetworkError(prev: RecordFormState, error: string): NonNullable<RecordFormState> {
+  return { ok: false, error, nonce: Date.now(), resetKey: prev?.resetKey ?? 0 };
+}

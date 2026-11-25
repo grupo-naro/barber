@@ -4,16 +4,15 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Lock } from "lucide-react";
-import { Sheet } from "@/components/panel/sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { localTime } from "@/lib/time";
-import { appointmentTag, daySummary, findOpenTarget, isOpenAppointment, nowLineIndex } from "@/lib/today-board";
+import { appointmentTag, daySummary, isOpenAppointment, nowLineIndex } from "@/lib/today-board";
 import { cn } from "@/lib/utils";
 import type { BarberOption, ServiceOption, TodayAppointment } from "@/server/queries/records";
-import { AppointmentStatusButtons, CompleteAppointmentForm } from "./appointment-actions";
+import { AppointmentSheet } from "./appointment-sheet";
 import { ctaClass } from "./format";
 import { RecordsSheet, type BoardRecord } from "./records-sheet";
-import { WalkInForm } from "./walk-in-form";
+import { EMPTY_DRAFT, WalkInSheet, type WalkInDraft } from "./walk-in-sheet";
 
 type OpenSheet = { kind: "walk-in" } | { kind: "appointment"; id: string } | { kind: "records" } | null;
 
@@ -193,14 +192,17 @@ export function TodayBoard({
   useRefreshOnReturn();
 
   const [open, setOpen] = useState<OpenSheet>(null);
+  const [draft, setDraft] = useState<WalkInDraft>(EMPTY_DRAFT);
   const [visit, setVisit] = useState(0);
   const opener = useRef<HTMLElement | null>(null);
 
-  // Next oculta Hoy al navegar (`<Activity>`), no la desmonta: al salir se cierra la hoja. `visit` la vuelve a
-  // montar, para que al volver no quede nada de la anterior.
+  // Next oculta Hoy al navegar (`<Activity>`), no la desmonta: al salir se cierra la hoja y se borra el
+  // borrador (tiene datos de un cliente). `visit` vuelve a montar las hojas, para que al volver no quede nada.
+  // Un `router.refresh()` no pasa por acá.
   useLayoutEffect(() => {
     return () => {
       setOpen(null);
+      setDraft(EMPTY_DRAFT);
       setVisit((v) => v + 1);
     };
   }, []);
@@ -216,8 +218,6 @@ export function TodayBoard({
     now,
   );
   const nowLine = <NowLine time={localTime(now, timeZone)} />;
-  const target = open?.kind === "appointment" ? findOpenTarget(appointments, open.id) : null;
-  const openAppointment = target && target.state !== "gone" ? target.appointment : null;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col pb-(--panel-bar)">
@@ -268,37 +268,27 @@ export function TodayBoard({
           total={total}
           timeZone={timeZone}
         />
-        <Sheet
+        <WalkInSheet
           open={open?.kind === "walk-in"}
-          onOpenChange={(next) => (next ? undefined : close())}
+          onClose={close}
           returnFocus={opener}
-          title="Corte sin turno"
-        >
-          <WalkInForm services={services} barbers={barbers} currentUserId={currentUserId} />
-        </Sheet>
-        <Sheet
-          open={openAppointment !== null}
-          onOpenChange={(next) => (next ? undefined : close())}
+          draft={draft}
+          onDraft={setDraft}
+          services={services}
+          barbers={barbers}
+          currentUserId={currentUserId}
+        />
+        <AppointmentSheet
+          openId={open?.kind === "appointment" ? open.id : null}
+          onClose={close}
           returnFocus={opener}
-          title={openAppointment?.customer.name ?? ""}
-        >
-          {openAppointment && target?.state === "open" && !closed ? (
-            <>
-              <CompleteAppointmentForm
-                appointmentId={openAppointment.id}
-                defaultServiceId={openAppointment.service.id}
-                services={services}
-                barbers={barbers}
-                assignedBarberId={openAppointment.barber?.id ?? null}
-                currentUserId={currentUserId}
-              />
-              <AppointmentStatusButtons
-                appointmentId={openAppointment.id}
-                customerName={openAppointment.customer.name}
-              />
-            </>
-          ) : null}
-        </Sheet>
+          appointments={appointments}
+          services={services}
+          barbers={barbers}
+          currentUserId={currentUserId}
+          timeZone={timeZone}
+          closed={closed}
+        />
       </Fragment>
     </div>
   );

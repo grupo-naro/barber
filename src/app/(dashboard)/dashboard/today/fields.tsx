@@ -1,39 +1,43 @@
-// Controles compartidos por los formularios del cuaderno (se usan desde componentes de cliente).
-import { Check } from "lucide-react";
+// Controles compartidos por las hojas de Hoy y la ficha del cliente (se usan desde componentes de cliente).
 import { Label } from "@/components/ui/label";
 import { formatPrice } from "@/lib/money";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethodValue } from "@/lib/records";
+import { cn } from "@/lib/utils";
 import type { BarberOption, ServiceOption } from "@/server/queries/records";
-import { chipClass, nativeControlClass } from "./format";
+import { nativeControlClass } from "./format";
 
-/** Fila seleccionable de servicio: ancho completo, ≥ 44px, mismo lenguaje visual que los chips. */
-const serviceRowClass = `${chipClass} w-full rounded-lg px-3`;
+const focusWithin = "has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring";
 
-export function ServiceChips({
+/** Servicios en dos columnas, con nombre (hasta dos líneas) y precio. Se pueden marcar varios. */
+export function ServiceTiles({
   services,
   selected,
   onToggle,
   disabled,
-  legend = "Servicios",
 }: {
   services: readonly ServiceOption[];
   selected: readonly string[];
   onToggle: (id: string) => void;
   disabled?: boolean;
-  legend?: string;
 }) {
   return (
-    <fieldset className="flex flex-col gap-2" disabled={disabled}>
-      <legend className="mb-2 text-sm font-medium">{legend}</legend>
+    <fieldset disabled={disabled} className="min-w-0">
+      <legend className="sr-only">Servicios</legend>
       {services.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No hay servicios activos. Cargalos en Servicios.</p>
+        <p className="text-muted-foreground">No hay servicios activos. Cargalos en Servicios.</p>
       ) : (
-        // Una fila por servicio (2 columnas desde sm): nombre a la izquierda, precio alineado a la derecha.
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2">
           {services.map((service) => {
             const checked = selected.includes(service.id);
             return (
-              <label key={service.id} className={serviceRowClass}>
+              <label
+                key={service.id}
+                className={cn(
+                  "relative flex min-h-15 cursor-pointer flex-col justify-center rounded-[10px] border-2 px-2.5 py-2 leading-tight select-none has-disabled:cursor-not-allowed",
+                  checked ? "border-(--brand) bg-(--brand) text-primary-foreground" : "bg-card",
+                  focusWithin,
+                )}
+              >
                 <input
                   type="checkbox"
                   name="serviceIds"
@@ -42,14 +46,10 @@ export function ServiceChips({
                   onChange={() => onToggle(service.id)}
                   className="sr-only"
                 />
-                <span
-                  aria-hidden
-                  className="flex size-5 shrink-0 items-center justify-center rounded-md border border-current opacity-80"
-                >
-                  {checked ? <Check className="size-3.5" /> : null}
+                <span className="line-clamp-2 wrap-anywhere">{service.name}</span>
+                <span className={cn("text-[0.9375rem] wrap-anywhere tabular-nums", !checked && "text-muted-foreground")}>
+                  {formatPrice(service.price)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-left">{service.name}</span>
-                <span className="shrink-0 tabular-nums opacity-80">{formatPrice(service.price)}</span>
               </label>
             );
           })}
@@ -59,6 +59,9 @@ export function ServiceChips({
   );
 }
 
+const SHORT_LABELS: Record<PaymentMethodValue, string> = { ...PAYMENT_METHOD_LABELS, TRANSFER: "Transf." };
+
+/** Los cuatro medios de pago en una fila. */
 export function PaymentPicker({
   value,
   onChange,
@@ -69,20 +72,28 @@ export function PaymentPicker({
   disabled?: boolean;
 }) {
   return (
-    <fieldset className="flex flex-col gap-2" disabled={disabled}>
-      <legend className="mb-2 text-sm font-medium">Medio de pago</legend>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <fieldset disabled={disabled} className="min-w-0">
+      <legend className="sr-only">Medio de pago</legend>
+      <div className="grid grid-cols-4 gap-1 rounded-[10px] bg-secondary p-1">
         {PAYMENT_METHODS.map((method) => (
-          <label key={method} className={`${chipClass} justify-center rounded-lg`}>
+          <label
+            key={method}
+            className={cn(
+              "relative flex min-h-11 cursor-pointer items-center justify-center rounded-[7px] text-[0.9375rem] select-none has-disabled:cursor-not-allowed",
+              value === method && "bg-card font-bold text-(--brand) ring-2 ring-(--brand)",
+              focusWithin,
+            )}
+          >
             <input
               type="radio"
               name="paymentMethod"
               value={method}
+              aria-label={PAYMENT_METHOD_LABELS[method]}
               checked={value === method}
               onChange={() => onChange(method)}
               className="sr-only"
             />
-            {PAYMENT_METHOD_LABELS[method]}
+            {SHORT_LABELS[method]}
           </label>
         ))}
       </div>
@@ -110,7 +121,16 @@ export function ResultMessage({
   );
 }
 
-/** Alterna un id en una lista (para los chips). */
+/** Error de una hoja, arriba de su botón. */
+export function SheetError({ message }: { message: string | null }) {
+  return message ? (
+    <p role="alert" className="mb-2.5 font-medium wrap-anywhere text-destructive">
+      {message}
+    </p>
+  ) : null;
+}
+
+/** Alterna un id en una lista (para los servicios). */
 export function toggleId(list: readonly string[], id: string): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 }
@@ -134,14 +154,16 @@ export function BarberSelect({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="text-base">
+        {label}
+      </Label>
       <select
         id={id}
         name="barberId"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={nativeControlClass}
+        className={cn(nativeControlClass, "min-h-12 rounded-[10px] border-2 md:text-base")}
         disabled={disabled}
       >
         {barbers.map((barber) => (
@@ -153,4 +175,9 @@ export function BarberSelect({
       </select>
     </div>
   );
+}
+
+/** Barbero elegido si sigue en la lista; si no, quien usa el panel. */
+export function pickBarber(barbers: readonly BarberOption[] | null, wanted: string | null, currentUserId: string): string {
+  return wanted && barbers?.some((b) => b.id === wanted) ? wanted : currentUserId;
 }
