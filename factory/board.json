@@ -16,7 +16,7 @@
     }
   ],
   "merge_lock": null,
-  "updated": "2026-11-25T00:50:22.483Z",
+  "updated": "2026-11-26T16:50:09.075Z",
   "jobs": [
     {
       "id": "001-seed-and-auth",
@@ -917,6 +917,39 @@
       "builder": "builder-030-mobile-panel-today",
       "decision": "ESCALATE",
       "note": "mergeado a main (aprobado por humano tras ESCALATE; bug menor anotado en 031)"
+    },
+    {
+      "id": "031-today-polish",
+      "title": "Hoy: cliente que queda pegado y detalles de las reviews",
+      "branch": "factory/031-today-polish",
+      "worktree": ".worktrees/031-today-polish",
+      "scope": [
+        "src/app/(dashboard)/dashboard/today/today-board.tsx",
+        "src/app/(dashboard)/dashboard/today/walk-in-sheet.tsx",
+        "src/components/panel/use-sheet-action.ts",
+        "src/lib/today-board.ts",
+        "src/lib/today-board.test.ts",
+        "src/lib/latest-lookup.ts",
+        "src/lib/latest-lookup.test.ts",
+        "scripts/panel-check.mjs"
+      ],
+      "stage": "done",
+      "slot": null,
+      "round": 1,
+      "reviews": {
+        "security": "PASS",
+        "ux": "PASS",
+        "ui": "PASS",
+        "code": "PASS"
+      },
+      "past": [],
+      "blocked_by": [],
+      "depends_on": [
+        "030-mobile-panel-today"
+      ],
+      "builder": "builder-031-today-polish",
+      "decision": "APPROVE",
+      "note": "mergeado a main"
     }
   ]
 }
