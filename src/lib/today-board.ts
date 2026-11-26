@@ -17,12 +17,20 @@ export function isOpenAppointment(status: TodayAppointment["status"]): boolean {
   return (OPEN_APPOINTMENT_STATUSES as readonly string[]).includes(status);
 }
 
-/** Etiqueta de una fila: el resultado si terminó; si no, quién atiende o "Sin asignar". */
-export function appointmentTag(a: Pick<TodayAppointment, "status" | "barber">): AppointmentTag {
+/**
+ * Etiqueta de una fila: el resultado si terminó; si no, quién atiende o "Sin asignar". `null` en los turnos propios
+ * del barbero: repetiría su nombre en cada fila.
+ */
+export function appointmentTag(
+  a: Pick<TodayAppointment, "status" | "barber">,
+  viewer: { role: "OWNER" | "BARBER"; userId: string },
+): AppointmentTag | null {
   if (a.status === "COMPLETED") return { label: "Listo", tone: "muted" };
   if (a.status === "NO_SHOW") return { label: "No vino", tone: "muted" };
   if (a.status === "CANCELLED") return { label: "Cancelado", tone: "muted" };
-  return a.barber ? { label: a.barber.name, tone: "neutral" } : { label: "Sin asignar", tone: "accent" };
+  if (!a.barber) return { label: "Sin asignar", tone: "accent" };
+  if (viewer.role === "BARBER" && a.barber.id === viewer.userId) return null;
+  return { label: a.barber.name, tone: "neutral" };
 }
 
 /** Resumen del día en una frase. `total` es un decimal en string ("36000.00"). */

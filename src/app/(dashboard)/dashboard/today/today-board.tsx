@@ -25,7 +25,10 @@ const toneClass = {
   muted: "text-muted-foreground",
 } as const;
 
-/** Hora actual para la línea de ahora: arranca de la del servidor (no difiere al hidratar) y avanza cada minuto. */
+/**
+ * Hora actual para la línea de ahora: arranca de la del servidor (no difiere al hidratar) y avanza cada minuto.
+ * Next oculta Hoy al navegar (`<Activity>`) y el efecto vuelve a correr al mostrarla: ahí se pone al día.
+ */
 function useNow(serverNow: number): Date {
   const [now, setNow] = useState(serverNow);
   useEffect(() => {
@@ -42,6 +45,7 @@ function useNow(serverNow: number): Date {
     const onVisible = () => {
       if (document.visibilityState === "visible") setNow(Date.now());
     };
+    onVisible();
     schedule();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -91,17 +95,19 @@ function NowLine({ time }: { time: string }) {
 function AppointmentRow({
   appointment,
   timeZone,
-  isOwner,
+  role,
+  currentUserId,
   onOpen,
 }: {
   appointment: TodayAppointment;
   timeZone: string;
-  isOwner: boolean;
+  role: "OWNER" | "BARBER";
+  currentUserId: string;
   onOpen: (trigger: HTMLElement) => void;
 }) {
   const done = !isOpenAppointment(appointment.status);
-  const tag = appointmentTag(appointment);
-  const attended = isOwner && appointment.status === "COMPLETED" ? appointment.barber : null;
+  const tag = appointmentTag(appointment, { role, userId: currentUserId });
+  const attended = role === "OWNER" && appointment.status === "COMPLETED" ? appointment.barber : null;
   return (
     <li>
       <button
@@ -114,19 +120,31 @@ function AppointmentRow({
           done ? "text-muted-foreground" : "bg-card",
         )}
       >
-        <span className="panel-display text-[1.5625rem] leading-none">
+        <span className="panel-display text-[1.5625rem] leading-none tabular-nums">
           {localTime(appointment.startsAt, timeZone)}
         </span>
         <span className="min-w-0">
           <span className={cn("block truncate", !done && "font-semibold")}>{appointment.customer.name}</span>
-          <span className="block truncate text-sm text-muted-foreground">
-            {appointment.service.name}
-            {attended ? ` · ${attended.name}` : ""}
+          {/* Si no entra, se recorta primero el servicio. */}
+          <span className="flex text-sm text-muted-foreground">
+            <span className="truncate">{appointment.service.name}</span>
+            {attended ? (
+              <span className="max-w-3/4 shrink-0 overflow-hidden text-ellipsis whitespace-pre">
+                {` · ${attended.name}`}
+              </span>
+            ) : null}
           </span>
         </span>
-        <span className={cn("max-w-28 truncate text-sm font-semibold sm:max-w-48", toneClass[tag.tone])}>
-          {tag.label}
-        </span>
+        {tag ? (
+          <span
+            className={cn(
+              "line-clamp-2 max-w-28 text-right text-sm leading-tight font-semibold wrap-break-word sm:max-w-48",
+              toneClass[tag.tone],
+            )}
+          >
+            {tag.label}
+          </span>
+        ) : null}
       </button>
     </li>
   );
@@ -252,7 +270,8 @@ export function TodayBoard({
               <AppointmentRow
                 appointment={appointment}
                 timeZone={timeZone}
-                isOwner={isOwner}
+                role={role}
+                currentUserId={currentUserId}
                 onOpen={(trigger) => show({ kind: "appointment", id: appointment.id }, trigger)}
               />
             </Fragment>

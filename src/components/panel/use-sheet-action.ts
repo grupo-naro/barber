@@ -44,6 +44,8 @@ export function useSheetAction<S extends Result>({
       const result = await run(state, formData);
       if (!alive.current) {
         // Salió de la pantalla con el envío en curso: la hoja ya no está, pero el resultado se avisa igual.
+        // Nadie va a llamar a `reset`: el bloqueo se suelta acá.
+        busy.current = false;
         if (result) toast(result.ok ? result.message : result.error);
         return;
       }
